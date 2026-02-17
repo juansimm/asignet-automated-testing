@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+}
+
+model Target {
+  id        String   @id @default(cuid())
+  name      String
+  baseUrl   String
+  createdAt DateTime @default(now())
+  runs      Run[]
+}
+
+model Run {
+  id             String    @id @default(uuid())
+  targetId       String
+  target         Target    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  suiteName      String
+  suiteHash      String?
+  mode           String?
+  slowMoMs       Int?
+  status         RunStatus @default(QUEUED)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  exitCode       Int?
+  stdoutPath     String?
+  stderrPath     String?
+  reportJsonPath String?
+  htmlReportPath String?
+  artifactsDir   String?
+  total          Int?
+  passed         Int?
+  failed         Int?
+  flaky          Int?
+  durationMs     Int?
+  createdAt      DateTime  @default(now())
+
+  @@index([targetId])
+  @@index([status])
+  @@index([createdAt])
+}
