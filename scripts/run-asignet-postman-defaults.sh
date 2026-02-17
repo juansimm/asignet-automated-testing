@@ -15,22 +15,31 @@ RESPONSES_DIR="${RESPONSES_DIR:-$SCRIPT_DIR/respones}"
 RUN_STAMP="$(date +%Y%m%d_%H%M%S)"
 
 print_json_if_possible() {
-  local value="$1"
-  if node -e 'JSON.parse(process.argv[1])' "$value" >/dev/null 2>&1; then
-    node -e 'console.log(JSON.stringify(JSON.parse(process.argv[1]), null, 2))' "$value"
+  local input_file="$1"
+  if node -e '
+const fs = require("fs");
+const raw = fs.readFileSync(process.argv[1], "utf8");
+JSON.parse(raw);
+' "$input_file" >/dev/null 2>&1; then
+    node -e '
+const fs = require("fs");
+const raw = fs.readFileSync(process.argv[1], "utf8");
+console.log(JSON.stringify(JSON.parse(raw), null, 2));
+' "$input_file"
   else
-    printf '%s\n' "$value"
+    cat "$input_file"
   fi
 }
 
 save_json_response() {
   local filename="$1"
-  local value="$2"
+  local input_file="$2"
   mkdir -p "$RESPONSES_DIR"
   node -e '
 const fs = require("fs");
 const outPath = process.argv[1];
-const raw = process.argv[2];
+const inPath = process.argv[2];
+const raw = fs.readFileSync(inPath, "utf8");
 let payload;
 try {
   payload = JSON.parse(raw);
@@ -38,13 +47,14 @@ try {
   payload = { raw };
 }
 fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + "\n");
-' "$RESPONSES_DIR/$filename" "$value"
+' "$RESPONSES_DIR/$filename" "$input_file"
 }
 
 extract_token() {
-  local value="$1"
+  local input_file="$1"
   node -e '
-const raw = process.argv[1];
+const fs = require("fs");
+const raw = fs.readFileSync(process.argv[1], "utf8");
 let token = "";
 try {
   const data = JSON.parse(raw);
@@ -65,7 +75,7 @@ if (!token) {
   if (match) token = match[1];
 }
 process.stdout.write((token || "").replace(/^"+|"+$/g, ""));
-' "$value"
+' "$input_file"
 }
 
 AUTH_PAYLOAD=$(cat <<EOF
@@ -78,35 +88,43 @@ EOF
 
 printf 'Responses will be saved to: %s\n' "$RESPONSES_DIR"
 
-printf '==> Authenticate: %s/api/login/authenticate\n' "$BASE_URL"
-AUTH_RESPONSE=$(curl -sS -X POST "$BASE_URL/api/login/authenticate" \
-  -H "Content-Type: application/json" \
-  --data-raw "$AUTH_PAYLOAD")
+AUTH_FILE="$(mktemp)"
+LOG_FILE="$(mktemp)"
+USER_FILE="$(mktemp)"
+trap 'rm -f "$AUTH_FILE" "$LOG_FILE" "$USER_FILE"' EXIT
 
-TOKEN="$(extract_token "$AUTH_RESPONSE")"
+printf '==> Authenticate: %s/api/login/authenticate\n' "$BASE_URL"
+curl -sS -X POST "$BASE_URL/api/login/authenticate" \
+  -H "Content-Type: application/json" \
+  --data-raw "$AUTH_PAYLOAD" \
+  -o "$AUTH_FILE"
+
+TOKEN="$(extract_token "$AUTH_FILE")"
 if [[ -z "$TOKEN" ]]; then
   echo "Failed to extract auth token from login response:"
-  print_json_if_possible "$AUTH_RESPONSE"
+  print_json_if_possible "$AUTH_FILE"
   exit 1
 fi
 
 echo "Token extracted successfully."
 
 printf '\n==> GET %s/api/Wayfast/LogRequestList\n' "$BASE_URL"
-LOG_RESPONSE=$(curl -sS -G "$BASE_URL/api/Wayfast/LogRequestList" \
+curl -sS -G "$BASE_URL/api/Wayfast/LogRequestList" \
   -H "Authorization: Bearer $TOKEN" \
   --data-urlencode "Email=$EMAIL" \
   --data-urlencode "StartDate=$START_DATE" \
   --data-urlencode "EndDate=$END_DATE" \
-  --data-urlencode "Host=$HOST_VALUE")
-print_json_if_possible "$LOG_RESPONSE"
-save_json_response "wayfast_log_request_list_${RUN_STAMP}.json" "$LOG_RESPONSE"
+  --data-urlencode "Host=$HOST_VALUE" \
+  -o "$LOG_FILE"
+print_json_if_possible "$LOG_FILE"
+save_json_response "wayfast_log_request_list_${RUN_STAMP}.json" "$LOG_FILE"
 printf 'Saved: %s/wayfast_log_request_list_%s.json\n' "$RESPONSES_DIR" "$RUN_STAMP"
 
 printf '\n==> GET %s/api/Wayfast/GetUserByEmail\n' "$BASE_URL"
-USER_RESPONSE=$(curl -sS -G "$BASE_URL/api/Wayfast/GetUserByEmail" \
+curl -sS -G "$BASE_URL/api/Wayfast/GetUserByEmail" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "email=$EMAIL")
-print_json_if_possible "$USER_RESPONSE"
-save_json_response "wayfast_get_user_by_email_${RUN_STAMP}.json" "$USER_RESPONSE"
+  --data-urlencode "email=$EMAIL" \
+  -o "$USER_FILE"
+print_json_if_possible "$USER_FILE"
+save_json_response "wayfast_get_user_by_email_${RUN_STAMP}.json" "$USER_FILE"
 printf 'Saved: %s/wayfast_get_user_by_email_%s.json\n' "$RESPONSES_DIR" "$RUN_STAMP"
