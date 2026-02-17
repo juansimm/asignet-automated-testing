@@ -9,6 +9,8 @@ EMAIL="${EMAIL:-mlamanna@asignet.com}"
 START_DATE="${START_DATE:-2026-02-17}"
 END_DATE="${END_DATE:-2026-02-18}"
 HOST_VALUE="${HOST_VALUE:-}"
+RESPONSES_DIR="${RESPONSES_DIR:-scripts/respones}"
+RUN_STAMP="$(date +%Y%m%d_%H%M%S)"
 
 print_json_if_possible() {
   local value="$1"
@@ -17,6 +19,24 @@ print_json_if_possible() {
   else
     printf '%s\n' "$value"
   fi
+}
+
+save_json_response() {
+  local filename="$1"
+  local value="$2"
+  mkdir -p "$RESPONSES_DIR"
+  node -e '
+const fs = require("fs");
+const outPath = process.argv[1];
+const raw = process.argv[2];
+let payload;
+try {
+  payload = JSON.parse(raw);
+} catch {
+  payload = { raw };
+}
+fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + "\n");
+' "$RESPONSES_DIR/$filename" "$value"
 }
 
 extract_token() {
@@ -76,9 +96,13 @@ LOG_RESPONSE=$(curl -sS -G "$BASE_URL/api/Wayfast/LogRequestList" \
   --data-urlencode "EndDate=$END_DATE" \
   --data-urlencode "Host=$HOST_VALUE")
 print_json_if_possible "$LOG_RESPONSE"
+save_json_response "wayfast_log_request_list_${RUN_STAMP}.json" "$LOG_RESPONSE"
+printf 'Saved: %s/wayfast_log_request_list_%s.json\n' "$RESPONSES_DIR" "$RUN_STAMP"
 
 printf '\n==> GET %s/api/Wayfast/GetUserByEmail\n' "$BASE_URL"
 USER_RESPONSE=$(curl -sS -G "$BASE_URL/api/Wayfast/GetUserByEmail" \
   -H "Authorization: Bearer $TOKEN" \
   --data-urlencode "email=$EMAIL")
 print_json_if_possible "$USER_RESPONSE"
+save_json_response "wayfast_get_user_by_email_${RUN_STAMP}.json" "$USER_RESPONSE"
+printf 'Saved: %s/wayfast_get_user_by_email_%s.json\n' "$RESPONSES_DIR" "$RUN_STAMP"
