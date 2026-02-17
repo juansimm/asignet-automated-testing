@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Defaults from postman/DBO ASIGNET.postman_collection.json
 BASE_URL="${BASE_URL:-https://dbo.asignet.com/asignetrestapi}"
 USERNAME="${USERNAME:-userrestapi}"
@@ -9,7 +11,7 @@ EMAIL="${EMAIL:-mlamanna@asignet.com}"
 START_DATE="${START_DATE:-2026-02-17}"
 END_DATE="${END_DATE:-2026-02-18}"
 HOST_VALUE="${HOST_VALUE:-}"
-RESPONSES_DIR="${RESPONSES_DIR:-scripts/respones}"
+RESPONSES_DIR="${RESPONSES_DIR:-$SCRIPT_DIR/respones}"
 RUN_STAMP="$(date +%Y%m%d_%H%M%S)"
 
 print_json_if_possible() {
@@ -73,6 +75,8 @@ AUTH_PAYLOAD=$(cat <<EOF
 }
 EOF
 )
+
+printf 'Responses will be saved to: %s\n' "$RESPONSES_DIR"
 
 printf '==> Authenticate: %s/api/login/authenticate\n' "$BASE_URL"
 AUTH_RESPONSE=$(curl -sS -X POST "$BASE_URL/api/login/authenticate" \
