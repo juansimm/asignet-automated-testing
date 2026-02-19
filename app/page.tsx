@@ -22,6 +22,11 @@ const pages = [
     title: "AI",
     description: "Build scenario input from Wayfast logs and generate Playwright agent requests.",
   },
+  {
+    href: "/specs",
+    title: "Specs",
+    description: "View generated specs and current test files for planner/generator/healer flow.",
+  },
 ];
 
 export default function Home() {
