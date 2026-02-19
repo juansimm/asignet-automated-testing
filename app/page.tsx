@@ -4,24 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 const pages = [
   {
     href: "/targets",
-    title: "Targets",
-    description: "Create and manage base URLs for environments and test contexts.",
+    title: "URL Test Targets",
+    description: "Creá y administrá base URLs para ambientes y contextos de prueba.",
   },
   {
     href: "/ai",
-    title: "AI",
-    description: "Ingest logs without DBO dependency and create scenario-driven agent requests.",
+    title: "IA",
+    description: "Ingerí logs sin depender de DBO y generá requests de agentes orientados a escenarios.",
   },
   {
     href: "/specs",
-    title: "Specs",
-    description: "View generated specs and current test files for planner/generator/healer flow.",
+    title: "Especificaciones",
+    description: "Visualizá especificaciones generadas y tests actuales para el flujo planner/generator/healer.",
   },
   {
     href: "/tests-viewers",
-    title: "Tests Viewers",
+    title: "Visor de Tests",
     description:
-      "Inspect the latest runs with per-test outputs, status, responses, and screenshots.",
+      "Inspeccioná las últimas corridas con salida por test, estado, respuestas y capturas.",
   },
 ];
 
@@ -31,7 +31,7 @@ export default function Home() {
       <div>
         <h1 className="text-2xl font-semibold">QA Debug UI</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Focused workspace for targets, AI-driven scenario prep, and specs.
+          Espacio de trabajo para entornos, preparación de escenarios con IA y specs.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -46,7 +46,7 @@ export default function Home() {
                 href={page.href}
                 className="inline-flex rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
               >
-                Open {page.title}
+                Abrir {page.title}
               </Link>
             </CardContent>
           </Card>

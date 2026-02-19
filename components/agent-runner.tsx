@@ -12,6 +12,7 @@ type AgentRunnerProps = {
 type RunResponse = {
   phase: "planner" | "generator" | "healer";
   command: string;
+  recordFile?: string | null;
   outputPlanFile: string | null;
   exitCode: number;
   stdout: string;
@@ -46,19 +47,20 @@ export function AgentRunner({ requestFiles, planFiles }: AgentRunnerProps) {
 
       const payload = (await response.json()) as RunResponse;
       if (!response.ok) {
-        throw new Error(payload.error ?? `Failed to run ${phase}`);
+        throw new Error(payload.error ?? `No se pudo ejecutar ${phase}`);
       }
 
       const chunks = [
-        `Phase: ${payload.phase}`,
-        `Exit code: ${payload.exitCode}`,
-        payload.outputPlanFile ? `Output plan: ${payload.outputPlanFile}` : "",
+        `Fase: ${payload.phase}`,
+        `Código de salida: ${payload.exitCode}`,
+        payload.recordFile ? `Registro: ${payload.recordFile}` : "",
+        payload.outputPlanFile ? `Plan de salida: ${payload.outputPlanFile}` : "",
         "",
-        "STDOUT:",
-        payload.stdout || "(empty)",
+        "SALIDA STDOUT:",
+        payload.stdout || "(vacío)",
         "",
-        "STDERR:",
-        payload.stderr || "(empty)",
+        "SALIDA STDERR:",
+        payload.stderr || "(vacío)",
       ].filter(Boolean);
 
       setOutput(chunks.join("\n"));
@@ -71,7 +73,7 @@ export function AgentRunner({ requestFiles, planFiles }: AgentRunnerProps) {
 
   const runHelp = useMemo(
     () =>
-      "Runs local opencode subagents from this UI. Requires `opencode` CLI available in PATH and initialized agent definitions.",
+      "Ejecuta subagentes locales de OpenCode desde esta UI. Requiere `opencode` en PATH y definiciones de agente inicializadas.",
     [],
   );
 
@@ -80,7 +82,7 @@ export function AgentRunner({ requestFiles, planFiles }: AgentRunnerProps) {
       <p className="text-xs text-slate-600">{runHelp}</p>
       <div className="grid gap-2 md:grid-cols-2">
         <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Request File (Planner)</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Archivo de Solicitud (Planificador)</p>
           <Select value={requestFile} onChange={(event) => setRequestFile(event.target.value)}>
             {requestFiles.length ? (
               requestFiles.map((file) => (
@@ -89,12 +91,12 @@ export function AgentRunner({ requestFiles, planFiles }: AgentRunnerProps) {
                 </option>
               ))
             ) : (
-              <option value="">No request files found</option>
+              <option value="">No se encontraron archivos de solicitud</option>
             )}
           </Select>
         </div>
         <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Plan File (Generator)</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Archivo de Plan (Generador)</p>
           <Select value={planFile} onChange={(event) => setPlanFile(event.target.value)}>
             {planFiles.length ? (
               planFiles.map((file) => (
@@ -103,20 +105,20 @@ export function AgentRunner({ requestFiles, planFiles }: AgentRunnerProps) {
                 </option>
               ))
             ) : (
-              <option value="">No plan files found</option>
+              <option value="">No se encontraron archivos plan</option>
             )}
           </Select>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={!canRunPlanner || Boolean(loadingPhase)} onClick={() => runPhase("planner")}>
-          {loadingPhase === "planner" ? "Running planner..." : "Run Planner"}
+          {loadingPhase === "planner" ? "Ejecutando planificador..." : "Ejecutar Planificador"}
         </Button>
         <Button size="sm" disabled={!canRunGenerator || Boolean(loadingPhase)} onClick={() => runPhase("generator")}>
-          {loadingPhase === "generator" ? "Running generator..." : "Run Generator"}
+          {loadingPhase === "generator" ? "Ejecutando generador..." : "Ejecutar Generador"}
         </Button>
         <Button size="sm" disabled={Boolean(loadingPhase)} onClick={() => runPhase("healer")}>
-          {loadingPhase === "healer" ? "Running healer..." : "Run Healer"}
+          {loadingPhase === "healer" ? "Ejecutando corrector..." : "Ejecutar Corrector"}
         </Button>
       </div>
       {output && (

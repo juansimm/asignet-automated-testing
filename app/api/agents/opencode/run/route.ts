@@ -1,5 +1,6 @@
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
 import { NextResponse } from "next/server";
 import { ROOT_DIR, SPECS_DIR } from "@/lib/constants";
 
@@ -33,30 +34,30 @@ function resolveUnderSpecs(relativePath: string) {
 
 function buildPlannerPrompt(outputPlanPath: string) {
   return [
-    "Use the attached request markdown as the source of truth.",
-    "Follow the Playwright planner conventions from .opencode/prompts/playwright-test-planner.md.",
-    `Create a comprehensive test plan and save it to ${outputPlanPath}.`,
-    "Include clear scenarios, detailed steps, and explicit assertions.",
+    "Usá el markdown de solicitud adjunto como fuente de verdad.",
+    "Seguí las convenciones del planificador en .opencode/prompts/playwright-test-planner.md.",
+    `Creá un plan de pruebas completo y guardalo en ${outputPlanPath}.`,
+    "Incluí escenarios claros, pasos detallados y assertions explícitas.",
   ].join(" ");
 }
 
 function buildGeneratorPrompt(planFile: string) {
   return [
-    `Use ${planFile} as the test plan.`,
-    "Follow .opencode/prompts/playwright-test-generator.md conventions.",
-    "Generate executable Playwright tests under playwright/tests/.",
-    "Use playwright/tests/seed.spec.ts as seed reference.",
-    "Do not overwrite playwright/tests/seed.spec.ts.",
-    "Follow stable locator and explicit assertion best practices.",
-    "Add screenshot evidence: after each critical assertion, capture page.screenshot(); when validating key text/element, also capture locator.screenshot().",
+    `Usá ${planFile} como plan de pruebas.`,
+    "Seguí las convenciones de .opencode/prompts/playwright-test-generator.md.",
+    "Generá tests ejecutables de Playwright dentro de playwright/tests/.",
+    "Usá playwright/tests/seed.spec.ts como referencia de semilla.",
+    "No sobrescribas playwright/tests/seed.spec.ts.",
+    "Aplicá buenas prácticas de locators estables y assertions explícitas.",
+    "Agregá evidencia de capturas: luego de cada assertion crítica, guardá page.screenshot(); cuando valides texto/elemento clave, guardá también locator.screenshot().",
   ].join(" ");
 }
 
 function buildHealerPrompt() {
   return [
-    "Follow .opencode/prompts/playwright-test-healer.md conventions.",
-    "Run Playwright tests in this repository, debug failures, and fix tests until green.",
-    "Avoid deprecated APIs and keep fixes maintainable.",
+    "Seguí las convenciones de .opencode/prompts/playwright-test-healer.md.",
+    "Ejecutá los tests de Playwright en este repositorio, depurá fallos y corregí tests hasta quedar en verde.",
+    "Evitá APIs deprecadas y mantené correcciones mantenibles.",
   ].join(" ");
 }
 
@@ -68,6 +69,14 @@ function buildTimestamp() {
 
 function shellQuote(input: string) {
   return `'${input.replace(/'/g, `'\\''`)}'`;
+}
+
+function getAgentRunsDir() {
+  return path.join(SPECS_DIR, "agent-runs");
+}
+
+function buildAgentRunRecordFilename(phase: RunPhase) {
+  return `agent-run_${buildTimestamp()}_${phase}.json`;
 }
 
 async function runWithCandidates(args: string[]) {
@@ -113,14 +122,14 @@ async function runWithCandidates(args: string[]) {
   return {
     stdout: "",
     stderr: [
-      "Unable to execute OpenCode agent CLI.",
-      "Tried binaries:",
+      "No se pudo ejecutar la CLI de OpenCode.",
+      "Binarios probados:",
       ...candidates.map((candidate) => `- ${candidate}`),
       "",
-      "Set OPENCODE_BIN in your .env to the full binary path, for example:",
+      "Definí OPENCODE_BIN en tu .env con la ruta completa al binario, por ejemplo:",
       'OPENCODE_BIN="/full/path/to/opencode"',
       "",
-      "Last errors:",
+      "Últimos errores:",
       failures.join("\n\n"),
     ].join("\n"),
     code: 1,
@@ -133,12 +142,12 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as RunRequest;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "JSON de entrada inválido" }, { status: 400 });
   }
 
   const phase = body.phase;
   if (!phase) {
-    return NextResponse.json({ error: "phase is required" }, { status: 400 });
+    return NextResponse.json({ error: "phase es obligatorio" }, { status: 400 });
   }
 
   let args: string[] = [];
@@ -147,10 +156,10 @@ export async function POST(request: Request) {
   if (phase === "planner") {
     const requestFile = body.requestFile?.trim();
     if (!requestFile) {
-      return NextResponse.json({ error: "requestFile is required for planner" }, { status: 400 });
+      return NextResponse.json({ error: "requestFile es obligatorio para planner" }, { status: 400 });
     }
     if (!resolveUnderSpecs(requestFile)) {
-      return NextResponse.json({ error: "requestFile must be under specs/" }, { status: 400 });
+      return NextResponse.json({ error: "requestFile debe estar dentro de specs/" }, { status: 400 });
     }
 
     outputPlanFile = `specs/test-plan_${buildTimestamp()}.md`;
@@ -164,10 +173,10 @@ export async function POST(request: Request) {
   } else if (phase === "generator") {
     const planFile = body.planFile?.trim();
     if (!planFile) {
-      return NextResponse.json({ error: "planFile is required for generator" }, { status: 400 });
+      return NextResponse.json({ error: "planFile es obligatorio para generator" }, { status: 400 });
     }
     if (!resolveUnderSpecs(planFile)) {
-      return NextResponse.json({ error: "planFile must be under specs/" }, { status: 400 });
+      return NextResponse.json({ error: "planFile debe estar dentro de specs/" }, { status: 400 });
     }
 
     args = [
@@ -186,10 +195,41 @@ export async function POST(request: Request) {
   }
 
   const result = await runWithCandidates(args);
+  const agentRunsDir = getAgentRunsDir();
+  const recordFilename = buildAgentRunRecordFilename(phase);
+  const recordAbsolutePath = path.join(agentRunsDir, recordFilename);
+  const recordRelativePath = `specs/agent-runs/${recordFilename}`;
+
+  try {
+    await fs.mkdir(agentRunsDir, { recursive: true });
+    await fs.writeFile(
+      recordAbsolutePath,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          phase,
+          requestFile: body.requestFile ?? null,
+          planFile: body.planFile ?? null,
+          outputPlanFile: result.code === 0 ? outputPlanFile : null,
+          command: `${result.commandBin} ${args.join(" ")}`,
+          exitCode: result.code,
+          ok: result.code === 0,
+          stdout: stripAnsi(result.stdout),
+          stderr: stripAnsi(result.stderr),
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  } catch {
+    // Non-blocking: do not fail agent execution response if writing the record fails.
+  }
 
   return NextResponse.json({
     phase,
     command: `${result.commandBin} ${args.join(" ")}`,
+    recordFile: recordRelativePath,
     outputPlanFile: result.code === 0 ? outputPlanFile : null,
     exitCode: result.code,
     stdout: stripAnsi(result.stdout),

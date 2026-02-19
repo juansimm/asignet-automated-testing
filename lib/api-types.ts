@@ -92,3 +92,28 @@ export type ViewerRunDto = {
   stderrUrl: string | null;
   source: "artifacts";
 };
+
+export type AgentPhaseDto = "planner" | "generator" | "healer";
+
+export type AgentRecordDto = {
+  phase: AgentPhaseDto;
+  createdAt: string;
+  ok: boolean;
+  exitCode: number;
+  command: string;
+  requestFile: string | null;
+  planFile: string | null;
+  outputPlanFile: string | null;
+  recordFile: string;
+  stdout: string;
+  stderr: string;
+};
+
+export type AgentContextDto = {
+  requestFile: string | null;
+  planFile: string | null;
+  inputTask: string | null;
+  planner: AgentRecordDto | null;
+  generator: AgentRecordDto | null;
+  healer: AgentRecordDto | null;
+};

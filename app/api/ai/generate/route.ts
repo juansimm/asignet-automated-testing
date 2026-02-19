@@ -28,27 +28,27 @@ function buildTimestamp() {
 function buildAgentRequestTemplate(scenarioSpec: string, seedFile: string) {
   const generatedAt = new Date().toISOString();
 
-  return `# Playwright Agent Request
+  return `# Solicitud de Agente Playwright
 
-- Generated at: ${generatedAt}
-- Seed file: \`${seedFile}\`
-- Agents: planner -> generator -> healer
+- Generado en: ${generatedAt}
+- Archivo semilla: \`${seedFile}\`
+- Agentes: planificador -> generador -> corrector
 
-## Scenario Input
+## Input del Escenario
 
 ${scenarioSpec}
 
-## Required Output
+## Salida Requerida
 
-1. Planner: create a comprehensive test plan markdown file under \`specs/\`.
-2. Generator: produce executable Playwright tests under \`playwright/tests/\`.
-3. Healer: run tests, debug failures, and fix flaky/broken tests until green.
+1. Planificador: crear un plan de pruebas detallado en markdown dentro de \`specs/\`.
+2. Generador: producir tests ejecutables de Playwright dentro de \`playwright/tests/\`.
+3. Corrector: ejecutar tests, depurar fallos y corregir tests inestables/rotos hasta quedar en verde.
 
-## Constraints
+## Restricciones
 
-- Use explicit assertions for every critical user step.
-- Keep test names behavior-focused and deterministic.
-- Prefer stable locators (role, label, test id) over brittle CSS selectors.
+- Usar assertions explícitas para cada paso crítico de usuario.
+- Mantener nombres de tests enfocados en comportamiento y determinísticos.
+- Priorizar locators estables (role, label, test id) sobre selectores CSS frágiles.
 `;
 }
 
@@ -57,8 +57,8 @@ function buildSeedTemplate() {
 
 test.describe("Seed Setup", () => {
   test("seed", async ({ page }) => {
-    // Keep this file as a stable setup reference for planner/generator.
-    // Add reusable setup steps for your app (auth, tenant selection, etc.).
+    // Mantené este archivo como referencia estable de setup para planificador/generador.
+    // Agregá pasos de setup reutilizables para tu app (auth, selección de tenant, etc.).
     await page.goto("/");
   });
 });
@@ -70,13 +70,13 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as GenerateSpecRequest;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "JSON de entrada inválido" }, { status: 400 });
   }
 
   const scenarioSpec = body.scenarioSpec?.trim();
 
   if (!scenarioSpec) {
-    return NextResponse.json({ error: "scenarioSpec is required" }, { status: 400 });
+    return NextResponse.json({ error: "scenarioSpec es obligatorio" }, { status: 400 });
   }
 
   const filename = `request_${buildTimestamp()}.md`;

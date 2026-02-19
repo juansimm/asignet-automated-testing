@@ -56,14 +56,14 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as WayfastIngestRequest;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "JSON de entrada inválido" }, { status: 400 });
   }
 
   const rawJson = body.rawJson?.trim() ?? "";
   const sourceUrl = body.url?.trim() ?? "";
   if (!rawJson && !sourceUrl) {
     return NextResponse.json(
-      { error: "Provide either rawJson or url." },
+      { error: "Debes enviar rawJson o url." },
       { status: 400 },
     );
   }
@@ -74,23 +74,23 @@ export async function POST(request: Request) {
   if (rawJson) {
     payload = parseJson(rawJson);
     if (payload === null) {
-      return NextResponse.json({ error: "rawJson is not valid JSON." }, { status: 400 });
+      return NextResponse.json({ error: "rawJson no es un JSON válido." }, { status: 400 });
     }
   } else {
     let parsedUrl: URL;
     try {
       parsedUrl = new URL(sourceUrl);
     } catch {
-      return NextResponse.json({ error: "url is not a valid URL." }, { status: 400 });
+      return NextResponse.json({ error: "url no es una URL válida." }, { status: 400 });
     }
 
     if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
-      return NextResponse.json({ error: "Only http/https URLs are supported." }, { status: 400 });
+      return NextResponse.json({ error: "Solo se soportan URLs http/https." }, { status: 400 });
     }
 
     if (isPrivateHostname(parsedUrl.hostname)) {
       return NextResponse.json(
-        { error: "URL must use a public DNS hostname or public IP address." },
+        { error: "La URL debe usar un hostname DNS público o una IP pública." },
         { status: 400 },
       );
     }
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     if (!response.ok) {
       return NextResponse.json(
         {
-          error: "Failed to fetch logs from URL",
+          error: "No se pudieron obtener logs desde la URL",
           status: response.status,
           details: parsed ?? text,
         },
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
 
     if (parsed === null) {
       return NextResponse.json(
-        { error: "The URL response is not valid JSON." },
+        { error: "La respuesta de la URL no es un JSON válido." },
         { status: 400 },
       );
     }

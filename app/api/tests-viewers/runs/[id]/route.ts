@@ -18,13 +18,13 @@ export async function GET(request: Request, context: RouteContext) {
     const details = await getViewerRunDetails(id, lines);
 
     if (!details) {
-      return NextResponse.json({ error: "run not found in artifacts" }, { status: 404 });
+      return NextResponse.json({ error: "no se encontró la corrida en artefactos" }, { status: 404 });
     }
 
     return NextResponse.json(details);
   } catch {
     return NextResponse.json(
-      { error: "Failed to read run details from local artifacts." },
+      { error: "No se pudo leer el detalle de la corrida desde artefactos locales." },
       { status: 500 },
     );
   }

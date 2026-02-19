@@ -33,13 +33,13 @@ export function SpecsCleaner() {
 
       const payload = (await response.json()) as CleanupResponse & { error?: string };
       if (!response.ok) {
-        throw new Error(payload.error ?? "Cleanup failed");
+        throw new Error(payload.error ?? "La limpieza falló");
       }
 
       if (dryRun) {
-        setMessage(`Dry run: ${payload.total} file(s) can be cleaned.`);
+        setMessage(`Simulación: ${payload.total} archivo(s) pueden limpiarse.`);
       } else {
-        setMessage(`Cleaned ${payload.total} file(s). Reloading...`);
+        setMessage(`Se limpiaron ${payload.total} archivo(s). Recargando...`);
         window.setTimeout(() => window.location.reload(), 500);
       }
     } catch (requestError) {
@@ -52,10 +52,10 @@ export function SpecsCleaner() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button size="sm" variant="secondary" disabled={loading} onClick={() => runCleanup(true)}>
-        Preview Cleanup
+        Previsualizar Limpieza
       </Button>
       <Button size="sm" variant="destructive" disabled={loading} onClick={() => runCleanup(false)}>
-        Clean Generated Files
+        Limpiar Archivos Generados
       </Button>
       {message && <p className="text-xs text-slate-600">{message}</p>}
     </div>

@@ -38,16 +38,16 @@ function buildScenarioFromSelectedEntries(entries: WayfastEntry[]) {
   }
 
   const lines = [
-    "# Scenario Context (Wayfast Logs)",
+    "# Contexto del Escenario (Logs Wayfast)",
     "",
-    "- Source: LogRequestList",
-    `- Selected entries: ${entries.length}`,
+    "- Fuente: LogRequestList",
+    `- Entradas seleccionadas: ${entries.length}`,
     "",
-    "## Observed Flow",
+    "## Flujo Observado",
   ];
 
   for (const [index, entry] of entries.entries()) {
-    const title = [entry.eventType, entry.key].filter(Boolean).join(" - ") || "Observed action";
+    const title = [entry.eventType, entry.key].filter(Boolean).join(" - ") || "Acción observada";
     const location = [entry.projectName, entry.pageName].filter(Boolean).join(" / ");
     const meta = [
       entry.date ? `date=${entry.date}` : "",
@@ -60,9 +60,9 @@ function buildScenarioFromSelectedEntries(entries: WayfastEntry[]) {
 
     lines.push(`### ${index + 1}. ${title}`);
     if (meta) lines.push(`- Meta: ${meta}`);
-    if (entry.value) lines.push(`- Signal: ${compact(entry.value, 140)}`);
-    if (entry.parameters) lines.push(`- Parameters: ${compact(entry.parameters, 140)}`);
-    lines.push("- Expected: Verify this action succeeds and UI reflects the operation.");
+    if (entry.value) lines.push(`- Señal: ${compact(entry.value, 140)}`);
+    if (entry.parameters) lines.push(`- Parámetros: ${compact(entry.parameters, 140)}`);
+    lines.push("- Esperado: Verificar que esta acción sea exitosa y la UI refleje la operación.");
     lines.push("");
   }
 
@@ -71,25 +71,25 @@ function buildScenarioFromSelectedEntries(entries: WayfastEntry[]) {
 
 function buildNoDboPrompt(goal: string, context: string, constraints: string, assertions: string) {
   const lines = [
-    "# Scenario Context (No DBO)",
+    "# Contexto del Escenario (Sin DBO)",
     "",
-    "## Objective",
-    goal || "Describe the user journey to automate.",
+    "## Objetivo",
+    goal || "Describí el flujo de usuario a automatizar.",
     "",
-    "## Product Context",
-    context || "Describe app area, user role, and preconditions.",
+    "## Contexto del Producto",
+    context || "Describí área de la app, rol de usuario y precondiciones.",
     "",
-    "## Constraints",
-    constraints || "List technical/business rules, forbidden actions, and stable locator expectations.",
+    "## Restricciones",
+    constraints || "Listá reglas técnicas/de negocio, acciones prohibidas y expectativas de locators estables.",
     "",
-    "## Required Assertions",
-    assertions || "List required checks after each critical step and final business outcome.",
+    "## Asserts Requeridos",
+    assertions || "Listá validaciones requeridas después de cada paso crítico y el resultado final.",
     "",
-    "## Agent Instructions",
-    "- Translate this into deterministic Playwright steps.",
-    "- Prefer role/label/test-id selectors.",
-    "- Add explicit assertions after critical actions.",
-    "- Keep test names behavior-focused.",
+    "## Instrucciones para el Agente",
+    "- Traducí esto a pasos determinísticos de Playwright.",
+    "- Priorizá selectores por role/label/test-id.",
+    "- Agregá assertions explícitas luego de acciones críticas.",
+    "- Mantené nombres de tests enfocados en comportamiento.",
   ];
 
   return lines.join("\n").trim();
@@ -123,10 +123,10 @@ export default function AiPage() {
   const [showRawLogs, setShowRawLogs] = useState(false);
 
   const modeHint = useMemo(() => {
-    if (logSourceMode === "promptOnly") return "No DBO mode: build scenario instructions directly with structured prompt fields.";
-    if (logSourceMode === "manual") return "Paste raw JSON logs from any source.";
-    if (logSourceMode === "publicUrl") return "Fetch JSON logs from a public URL (private/local hosts are blocked).";
-    return "Optional fallback: call Asignet API if credentials/access are available.";
+    if (logSourceMode === "promptOnly") return "Modo sin DBO: construí instrucciones de escenario directamente con campos estructurados.";
+    if (logSourceMode === "manual") return "Pegá logs JSON crudos desde cualquier origen.";
+    if (logSourceMode === "publicUrl") return "Traé logs JSON desde una URL pública (hosts privados/locales bloqueados).";
+    return "Fallback opcional: llamar API de Asignet si hay credenciales/acceso disponible.";
   }, [logSourceMode]);
 
   const clearLogState = () => {
@@ -157,7 +157,7 @@ export default function AiPage() {
         error?: string;
       };
 
-      if (!response.ok) throw new Error(payload.error ?? "Failed to generate agent request");
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo generar el request del agente");
 
       const created = payload.specPath ?? payload.relativePath ?? null;
       const seed = payload.seedFile ? `\nSeed: ${payload.seedFile}` : "";
@@ -185,11 +185,11 @@ export default function AiPage() {
 
       if (logSourceMode === "manual") {
         const rawJson = manualLogJson.trim();
-        if (!rawJson) throw new Error("Paste JSON logs first.");
+        if (!rawJson) throw new Error("Pegá primero el JSON de logs.");
         body = { rawJson };
       } else if (logSourceMode === "publicUrl") {
         const url = publicLogUrl.trim();
-        if (!url) throw new Error("Public URL is required.");
+        if (!url) throw new Error("La URL pública es obligatoria.");
         body = { url };
       } else {
         const email = logEmail.trim();
@@ -197,7 +197,7 @@ export default function AiPage() {
         const endDate = logEndDate.trim();
         const host = logHost.trim();
 
-        if (!email || !startDate || !endDate) throw new Error("Email, start date, and end date are required.");
+        if (!email || !startDate || !endDate) throw new Error("Email, fecha inicio y fecha fin son obligatorios.");
 
         endpoint = "/api/wayfast/log-request-list";
         body = { email, startDate, endDate, host: host || undefined };
@@ -216,7 +216,7 @@ export default function AiPage() {
         error?: string;
       };
 
-      if (!response.ok) throw new Error(payload.error ?? "Failed to load log data");
+      if (!response.ok) throw new Error(payload.error ?? "No se pudieron cargar los datos de logs");
 
       const data = payload.data ?? payload;
       const entries = Array.isArray(payload.entries) ? payload.entries : [];
@@ -254,18 +254,20 @@ export default function AiPage() {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
-        <h1 className="text-2xl font-semibold tracking-tight">AI Test Input Builder</h1>
-        <p className="mt-1 text-sm text-slate-600">Default flow is no-DBO prompt authoring, then generate a planner/generator/healer request under `specs/`.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Constructor de Entrada para Tests IA</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          El flujo recomendado es redactar prompt sin DBO y luego generar un request de planner/generator/healer en `specs/`.
+        </p>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Scenario Source</CardTitle>
+          <CardTitle>Fuente del Escenario</CardTitle>
           <CardDescription>{modeHint}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1 md:max-w-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Input Mode</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Modo de Entrada</p>
             <Select
               value={logSourceMode}
               onChange={(event) => {
@@ -273,32 +275,32 @@ export default function AiPage() {
                 clearLogState();
               }}
             >
-              <option value="promptOnly">Prompt only (No DBO, recommended)</option>
-              <option value="manual">Manual JSON logs</option>
-              <option value="publicUrl">Public URL JSON logs</option>
-              <option value="asignetApi">Asignet API (optional)</option>
+              <option value="promptOnly">Solo Prompt (Sin DBO, recomendado)</option>
+              <option value="manual">Logs JSON Manuales</option>
+              <option value="publicUrl">Logs JSON por URL Pública</option>
+              <option value="asignetApi">API Asignet (opcional)</option>
             </Select>
           </div>
 
           {logSourceMode === "promptOnly" && (
             <div className="space-y-3">
-              <Input value={promptGoal} onChange={(event) => setPromptGoal(event.target.value)} placeholder="Objective: e.g. validate checkout failure for invalid card" />
-              <Textarea rows={4} value={promptContext} onChange={(event) => setPromptContext(event.target.value)} placeholder="Product context: user role, environment, required setup, navigation start point" />
-              <Textarea rows={4} value={promptConstraints} onChange={(event) => setPromptConstraints(event.target.value)} placeholder="Constraints: disallowed actions, data rules, stable locators, timing constraints" />
-              <Textarea rows={4} value={promptAssertions} onChange={(event) => setPromptAssertions(event.target.value)} placeholder="Required assertions: exact expected banners/messages/URL/state changes" />
-              <Button onClick={handleAppendNoDboPrompt}>Append no-DBO prompt to scenario</Button>
+              <Input value={promptGoal} onChange={(event) => setPromptGoal(event.target.value)} placeholder="Objetivo: ej. validar falla de checkout por tarjeta inválida" />
+              <Textarea rows={4} value={promptContext} onChange={(event) => setPromptContext(event.target.value)} placeholder="Contexto de producto: rol de usuario, ambiente, setup requerido, punto inicial de navegación" />
+              <Textarea rows={4} value={promptConstraints} onChange={(event) => setPromptConstraints(event.target.value)} placeholder="Restricciones: acciones no permitidas, reglas de datos, locators estables, tiempos" />
+              <Textarea rows={4} value={promptAssertions} onChange={(event) => setPromptAssertions(event.target.value)} placeholder="Asserts requeridos: banners/mensajes/URL/cambios de estado esperados" />
+              <Button onClick={handleAppendNoDboPrompt}>Agregar prompt sin DBO al escenario</Button>
             </div>
           )}
 
           {logSourceMode === "publicUrl" && (
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Public URL</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-600">URL Pública</p>
               <Input value={publicLogUrl} onChange={(event) => setPublicLogUrl(event.target.value)} placeholder="https://example.com/logs.json" />
             </div>
           )}
 
           {logSourceMode === "manual" && (
-            <Textarea rows={8} value={manualLogJson} onChange={(event) => setManualLogJson(event.target.value)} placeholder='Paste raw JSON payload (array or object with "data" array)' />
+            <Textarea rows={8} value={manualLogJson} onChange={(event) => setManualLogJson(event.target.value)} placeholder='Pegá payload JSON crudo (array u objeto con "data" array)' />
           )}
 
           {logSourceMode === "asignetApi" && (
@@ -306,7 +308,7 @@ export default function AiPage() {
               <Input type="email" value={logEmail} onChange={(event) => setLogEmail(event.target.value)} placeholder="user@example.com" />
               <Input type="date" value={logStartDate} onChange={(event) => setLogStartDate(event.target.value)} />
               <Input type="date" value={logEndDate} onChange={(event) => setLogEndDate(event.target.value)} />
-              <Input value={logHost} onChange={(event) => setLogHost(event.target.value)} placeholder="Host filter" />
+              <Input value={logHost} onChange={(event) => setLogHost(event.target.value)} placeholder="Filtro de host" />
             </div>
           )}
 
@@ -314,27 +316,27 @@ export default function AiPage() {
             <>
               {logError && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{logError}</p>}
               <div className="flex flex-wrap gap-2">
-                <Button onClick={handleFetchLogs} disabled={logLoading}>{logLoading ? "Loading..." : "Load logs"}</Button>
-                <Button variant="secondary" onClick={handleAppendToScenario} disabled={!hasLogOutput}>Append selected to scenario</Button>
-                <Button variant="secondary" onClick={() => setSelectedLogIds(logEntries.map((entry) => entry.id))} disabled={!logEntries.length || allSelected}>Select all rows</Button>
-                <Button variant="secondary" onClick={() => setSelectedLogIds([])} disabled={!selectedCount}>Clear selected</Button>
-                <Button variant="secondary" onClick={() => setShowRawLogs((current) => !current)} disabled={!logOutput}>{showRawLogs ? "Hide raw JSON" : "Show raw JSON"}</Button>
-                <Button variant="secondary" onClick={clearLogState} disabled={!logOutput && !logError}>Clear output</Button>
+                <Button onClick={handleFetchLogs} disabled={logLoading}>{logLoading ? "Cargando..." : "Cargar logs"}</Button>
+                <Button variant="secondary" onClick={handleAppendToScenario} disabled={!hasLogOutput}>Agregar selección al escenario</Button>
+                <Button variant="secondary" onClick={() => setSelectedLogIds(logEntries.map((entry) => entry.id))} disabled={!logEntries.length || allSelected}>Seleccionar todas las filas</Button>
+                <Button variant="secondary" onClick={() => setSelectedLogIds([])} disabled={!selectedCount}>Limpiar selección</Button>
+                <Button variant="secondary" onClick={() => setShowRawLogs((current) => !current)} disabled={!logOutput}>{showRawLogs ? "Ocultar JSON crudo" : "Mostrar JSON crudo"}</Button>
+                <Button variant="secondary" onClick={clearLogState} disabled={!logOutput && !logError}>Limpiar salida</Button>
               </div>
 
               {logEntries.length > 0 ? (
                 <div className="space-y-2">
-                  <p className="text-xs text-slate-600">Selected {selectedCount} of {logEntries.length} entries for scenario append.</p>
+                  <p className="text-xs text-slate-600">Seleccionadas {selectedCount} de {logEntries.length} entradas para agregar al escenario.</p>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-10">Use</TableHead>
-                        <TableHead>Date</TableHead>
+                        <TableHead className="w-10">Usar</TableHead>
+                        <TableHead>Fecha</TableHead>
                         <TableHead>Host</TableHead>
-                        <TableHead>Page</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Value</TableHead>
-                        <TableHead className="w-16">Dur.</TableHead>
+                        <TableHead>Página</TableHead>
+                        <TableHead>Acción</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead className="w-16">Duración</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -342,7 +344,7 @@ export default function AiPage() {
                         const checked = selectedLogIds.includes(entry.id);
                         return (
                           <TableRow key={entry.id} data-state={checked ? "selected" : undefined}>
-                            <TableCell><input type="checkbox" checked={checked} onChange={() => handleToggleLogEntry(entry.id)} aria-label={`Select log entry ${entry.id + 1}`} /></TableCell>
+                            <TableCell><input type="checkbox" checked={checked} onChange={() => handleToggleLogEntry(entry.id)} aria-label={`Seleccionar entrada de log ${entry.id + 1}`} /></TableCell>
                             <TableCell className="font-mono text-xs">{compact(entry.date, 26) || "-"}</TableCell>
                             <TableCell className="text-xs">{compact(entry.host, 28) || "-"}</TableCell>
                             <TableCell className="text-xs">{compact([entry.projectName, entry.pageName].filter(Boolean).join(" / "), 36) || "-"}</TableCell>
@@ -356,10 +358,10 @@ export default function AiPage() {
                   </Table>
                 </div>
               ) : (
-                <p className="text-sm text-slate-600">No parsed rows yet.</p>
+                <p className="text-sm text-slate-600">Todavía no hay filas parseadas.</p>
               )}
 
-              {showRawLogs && <pre className="max-h-[20rem] overflow-auto rounded-md bg-slate-900 p-4 text-xs text-slate-100">{logOutput || "No log data loaded yet."}</pre>}
+              {showRawLogs && <pre className="max-h-[20rem] overflow-auto rounded-md bg-slate-900 p-4 text-xs text-slate-100">{logOutput || "Todavía no hay datos de logs cargados."}</pre>}
             </>
           )}
         </CardContent>
@@ -367,18 +369,18 @@ export default function AiPage() {
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Generate Agent Request</CardTitle>
-          <CardDescription>Creates a markdown request in `specs/` and links it to `playwright/tests/seed.spec.ts`.</CardDescription>
+          <CardTitle>Generar Solicitud de Agente</CardTitle>
+          <CardDescription>Crea una solicitud markdown en `specs/` y la vincula con `playwright/tests/seed.spec.ts`.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea
             rows={14}
             value={scenarioSpec}
             onChange={(event) => setScenarioSpec(event.target.value)}
-            placeholder="# Scenario\n- User opens checkout\n- User submits invalid card\n- Error banner should be visible"
+            placeholder="# Escenario\n- El usuario abre checkout\n- El usuario envía una tarjeta inválida\n- Debe verse un banner de error"
           />
-          <Button onClick={handleGenerate} disabled={loading || !scenarioSpec.trim()}>{loading ? "Generating..." : "Generate agent request"}</Button>
-          {createdFile && <p className="whitespace-pre-line rounded-md bg-emerald-50 p-2 text-sm text-emerald-700">Created: {createdFile}</p>}
+          <Button onClick={handleGenerate} disabled={loading || !scenarioSpec.trim()}>{loading ? "Generando..." : "Generar solicitud de agente"}</Button>
+          {createdFile && <p className="whitespace-pre-line rounded-md bg-emerald-50 p-2 text-sm text-emerald-700">Creado: {createdFile}</p>}
           {error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         </CardContent>
       </Card>

@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type {
+  AgentContextDto,
+  AgentPhaseDto,
   ParsedAttachmentDto,
   ParsedTestCaseDto,
   RunSummaryDto,
@@ -26,6 +28,7 @@ type RunDetailsResponse = {
   summary?: RunSummaryDto;
   tests?: ParsedTestCaseDto[];
   screenshots?: ParsedAttachmentDto[];
+  agentContext?: AgentContextDto | null;
   stdout?: string;
   stderr?: string;
   error?: string;
@@ -38,7 +41,7 @@ function formatDate(value: string | null) {
     return "-";
   }
 
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("es-AR");
 }
 
 function formatDuration(durationMs: number | null) {
@@ -51,6 +54,66 @@ function formatDuration(durationMs: number | null) {
   }
 
   return `${(durationMs / 1000).toFixed(1)} s`;
+}
+
+function toWorkspaceFileUrl(relativePath: string | null | undefined) {
+  if (!relativePath) {
+    return null;
+  }
+
+  const normalized = relativePath.replace(/^\.\//, "");
+  const segments = normalized.split("/").map((segment) => encodeURIComponent(segment));
+  return `/workspace-files/${segments.join("/")}`;
+}
+
+function formatAgentPhase(phase: AgentPhaseDto) {
+  if (phase === "planner") {
+    return "Planificador";
+  }
+
+  if (phase === "generator") {
+    return "Generador";
+  }
+
+  return "Corrector";
+}
+
+function formatRunStatusLabel(status: ViewerRunDto["status"]) {
+  if (status === "PASSED") {
+    return "APROBADO";
+  }
+
+  if (status === "FAILED") {
+    return "FALLIDO";
+  }
+
+  if (status === "RUNNING") {
+    return "EJECUTANDO";
+  }
+
+  return "EN ESPERA";
+}
+
+function formatTestStatusLabel(status: string) {
+  const normalized = status.toLowerCase();
+
+  if (normalized === "passed" || normalized === "expected") {
+    return "APROBADO";
+  }
+
+  if (normalized === "failed" || normalized === "unexpected") {
+    return "FALLIDO";
+  }
+
+  if (normalized === "flaky") {
+    return "INESTABLE";
+  }
+
+  if (normalized === "skipped") {
+    return "OMITIDO";
+  }
+
+  return status.toUpperCase();
 }
 
 function getTestStatusGroup(status: string): Exclude<TestFilter, "all"> {
@@ -91,20 +154,21 @@ function isTextPreviewable(attachment: ParsedAttachmentDto) {
 
 function TestResultBadge({ status }: { status: string }) {
   const group = getTestStatusGroup(status);
+  const label = formatTestStatusLabel(status);
 
   if (group === "passed") {
-    return <Badge variant="success">{status.toUpperCase()}</Badge>;
+    return <Badge variant="success">{label}</Badge>;
   }
 
   if (group === "flaky") {
-    return <Badge variant="warning">FLAKY</Badge>;
+    return <Badge variant="warning">{label}</Badge>;
   }
 
   if (group === "skipped") {
-    return <Badge variant="secondary">SKIPPED</Badge>;
+    return <Badge variant="secondary">{label}</Badge>;
   }
 
-  return <Badge variant="destructive">{status.toUpperCase()}</Badge>;
+  return <Badge variant="destructive">{label}</Badge>;
 }
 
 function ResponseAttachmentViewer({ attachment }: { attachment: ParsedAttachmentDto }) {
@@ -124,7 +188,7 @@ function ResponseAttachmentViewer({ attachment }: { attachment: ParsedAttachment
     try {
       const response = await fetch(attachment.url, { cache: "no-store" });
       if (!response.ok) {
-        throw new Error("Failed to load attachment");
+        throw new Error("No se pudo cargar el adjunto");
       }
 
       const raw = await response.text();
@@ -148,10 +212,10 @@ function ResponseAttachmentViewer({ attachment }: { attachment: ParsedAttachment
             rel="noreferrer"
             className="text-xs text-slate-900 underline"
           >
-            Open File
+            Abrir archivo
           </Link>
         ) : (
-          <p className="text-xs text-slate-500">No artifact URL</p>
+          <p className="text-xs text-slate-500">Sin URL de artefacto</p>
         )}
         {canPreview && (
           <Button
@@ -163,7 +227,7 @@ function ResponseAttachmentViewer({ attachment }: { attachment: ParsedAttachment
             }}
             disabled={loading}
           >
-            {loading ? "Loading..." : "Preview"}
+            {loading ? "Cargando..." : "Vista previa"}
           </Button>
         )}
       </div>
@@ -171,7 +235,7 @@ function ResponseAttachmentViewer({ attachment }: { attachment: ParsedAttachment
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       {content != null && (
         <pre className="mt-2 max-h-60 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
-          {content || "(empty response)"}
+          {content || "(respuesta vacía)"}
         </pre>
       )}
     </div>
@@ -192,6 +256,7 @@ export default function TestsViewersPage() {
   });
   const [tests, setTests] = useState<ParsedTestCaseDto[]>([]);
   const [runScreenshots, setRunScreenshots] = useState<ParsedAttachmentDto[]>([]);
+  const [agentContext, setAgentContext] = useState<AgentContextDto | null>(null);
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
   const [search, setSearch] = useState("");
@@ -205,7 +270,7 @@ export default function TestsViewersPage() {
     const payload = (await response.json()) as RunsResponse;
 
     if (!response.ok) {
-      throw new Error(payload.error ?? "Failed to load runs");
+      throw new Error(payload.error ?? "No se pudieron cargar las ejecuciones");
     }
 
     const nextRuns = payload.runs ?? [];
@@ -226,7 +291,7 @@ export default function TestsViewersPage() {
     const detailsPayload = (await detailsResponse.json()) as RunDetailsResponse;
 
     if (!detailsResponse.ok) {
-      throw new Error(detailsPayload.error ?? "Failed to load run details");
+      throw new Error(detailsPayload.error ?? "No se pudo cargar el detalle de la ejecución");
     }
 
     setRun(detailsPayload.run ?? null);
@@ -241,6 +306,7 @@ export default function TestsViewersPage() {
     );
     setTests(detailsPayload.tests ?? []);
     setRunScreenshots(detailsPayload.screenshots ?? []);
+    setAgentContext(detailsPayload.agentContext ?? null);
     setStdout(detailsPayload.stdout ?? "");
     setStderr(detailsPayload.stderr ?? "");
   }, []);
@@ -263,6 +329,7 @@ export default function TestsViewersPage() {
             durationMs: 0,
           });
           setRunScreenshots([]);
+          setAgentContext(null);
           setStdout("");
           setStderr("");
         }
@@ -341,7 +408,7 @@ export default function TestsViewersPage() {
 
   const runOutput = useMemo(() => {
     if (!stdout && !stderr) {
-      return "No output yet.";
+      return "Sin salida por el momento.";
     }
 
     return [stdout ? `[stdout]\n${stdout}` : "", stderr ? `[stderr]\n${stderr}` : ""]
@@ -387,30 +454,30 @@ export default function TestsViewersPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Tests Viewers</h1>
-        <p className="text-sm text-slate-600">
-          Explore runs from local Playwright artifacts (`bun run test` and triggered runs) with
-          per-test result, output, responses, and screenshots.
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white via-sky-50 to-slate-100 p-5 shadow-sm">
+        <h1 className="text-2xl font-semibold">Visor de Tests</h1>
+        <p className="mt-1 text-sm text-slate-700">
+          Explorá ejecuciones locales de Playwright (`bun run test` y corridas disparadas) con
+          resultado por test, salida, respuestas, contexto de agentes y capturas.
         </p>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Run Selection</CardTitle>
-          <CardDescription>Pick a run to inspect. Newer runs appear first.</CardDescription>
+          <CardTitle>Selección de Ejecución</CardTitle>
+          <CardDescription>Elegí una corrida para inspeccionar. Las más nuevas aparecen primero.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
             <Select value={selectedRunId} onChange={(event) => setSelectedRunId(event.target.value)}>
               <option value="" disabled>
-                {loadingRuns ? "Loading runs..." : "Select run"}
+                {loadingRuns ? "Cargando ejecuciones..." : "Seleccionar ejecución"}
               </option>
               {runs.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.id.slice(0, 8)} | {item.suiteName} | {item.status} | {formatDate(item.startedAt)}
+                  {item.id.slice(0, 8)} | {item.suiteName} | {formatRunStatusLabel(item.status)} | {formatDate(item.startedAt)}
                 </option>
               ))}
             </Select>
@@ -425,68 +492,76 @@ export default function TestsViewersPage() {
                 });
               }}
             >
-              Refresh
+              Actualizar
             </Button>
             <Link
               href="/runs"
               className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-100"
             >
-              Open Runs Page
+              Abrir Página de Ejecuciones
             </Link>
           </div>
           {noRuns && (
             <p className="text-sm text-slate-600">
-              No runs found yet. Trigger one from <Link href="/runs" className="underline">Runs</Link>.
+              Todavía no hay ejecuciones. Podés lanzar una desde{" "}
+              <Link href="/runs" className="underline">
+                Ejecuciones
+              </Link>
+              .
             </p>
           )}
         </CardContent>
       </Card>
 
       {run && (
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader>
-            <CardTitle>Selected Run</CardTitle>
+            <CardTitle>Ejecución Seleccionada</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-7">
+          <CardContent className="grid gap-3 md:grid-cols-8">
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Run</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Ejecución</p>
               <p className="mt-1 font-mono text-xs">{run.id}</p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Estado</p>
               <div className="mt-1">
                 <StatusBadge status={run.status} />
               </div>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Started</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Inicio</p>
               <p className="mt-1 text-sm">{formatDate(run.startedAt)}</p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Duration</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Duración</p>
               <p className="mt-1 text-sm">{formatDuration(summary.durationMs)}</p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Passed</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Aprobados</p>
               <p className="mt-1 text-sm font-semibold">{summary.passed}</p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Failed</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Fallidos</p>
               <p className="mt-1 text-sm font-semibold">{summary.failed}</p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Flaky</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Inestables</p>
               <p className="mt-1 text-sm font-semibold">{summary.flaky}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Capturas</p>
+              <p className="mt-1 text-sm font-semibold">{runScreenshots.length}</p>
             </div>
           </CardContent>
         </Card>
       )}
 
       {run && (
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader>
-            <CardTitle>Run Output</CardTitle>
-            <CardDescription>Latest stdout/stderr stream from this run.</CardDescription>
+            <CardTitle>Salida de la Ejecución</CardTitle>
+            <CardDescription>Último stream de stdout/stderr de esta corrida.</CardDescription>
           </CardHeader>
           <CardContent>
             <pre className="max-h-[24rem] overflow-auto rounded-md bg-slate-900 p-4 text-xs text-slate-100">
@@ -497,11 +572,131 @@ export default function TestsViewersPage() {
       )}
 
       {run && (
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader>
-            <CardTitle id="run-screenshots">Run Screenshots</CardTitle>
+            <CardTitle>Contexto de Agentes</CardTitle>
             <CardDescription>
-              Manual captures and test-result screenshots detected for this run.
+              Información detectada de planificador/generador/corrector y de la entrada de tarea.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Archivo de Solicitud
+                </p>
+                {agentContext?.requestFile ? (
+                  <Link
+                    href={toWorkspaceFileUrl(agentContext.requestFile) ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block font-mono text-xs underline"
+                  >
+                    {agentContext.requestFile}
+                  </Link>
+                ) : (
+                  <p className="mt-1 text-sm text-slate-600">No detectado para esta corrida.</p>
+                )}
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Archivo de Plan
+                </p>
+                {agentContext?.planFile ? (
+                  <Link
+                    href={toWorkspaceFileUrl(agentContext.planFile) ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block font-mono text-xs underline"
+                  >
+                    {agentContext.planFile}
+                  </Link>
+                ) : (
+                  <p className="mt-1 text-sm text-slate-600">No detectado para esta corrida.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Entrada Recibida (Tarea del Usuario)
+              </p>
+              {agentContext?.inputTask ? (
+                <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+                  {agentContext.inputTask}
+                </pre>
+              ) : (
+                <p className="mt-1 text-sm text-slate-600">
+                  No se detectó entrada de tarea para esta ejecución.
+                </p>
+              )}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {[agentContext?.planner, agentContext?.generator, agentContext?.healer].map((record, index) => (
+                <div key={record?.phase ?? index} className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {formatAgentPhase(record?.phase ?? (index === 0 ? "planner" : index === 1 ? "generator" : "healer"))}
+                  </p>
+                  {record ? (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-slate-700">
+                        Estado:{" "}
+                        <span className={record.ok ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
+                          {record.ok ? "OK" : `Error (${record.exitCode})`}
+                        </span>
+                      </p>
+                      <p className="text-xs text-slate-700">
+                        Ejecutado: {new Date(record.createdAt).toLocaleString("es-AR")}
+                      </p>
+                      <p className="truncate font-mono text-[11px] text-slate-600">{record.command}</p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Link
+                          href={toWorkspaceFileUrl(record.recordFile) ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs underline"
+                        >
+                          Registro
+                        </Link>
+                        {record.requestFile && (
+                          <Link
+                            href={toWorkspaceFileUrl(record.requestFile) ?? "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs underline"
+                          >
+                            Solicitud
+                          </Link>
+                        )}
+                        {(record.outputPlanFile ?? record.planFile) && (
+                          <Link
+                            href={toWorkspaceFileUrl(record.outputPlanFile ?? record.planFile) ?? "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs underline"
+                          >
+                            Plan
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-600">Sin ejecución registrada.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {run && (
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle id="run-screenshots">Capturas de la Corrida</CardTitle>
+            <CardDescription>
+              Capturas manuales y capturas de resultados detectadas para esta corrida.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -526,7 +721,7 @@ export default function TestsViewersPage() {
                       />
                     ) : (
                       <div className="flex h-40 items-center justify-center rounded bg-slate-200 text-xs text-slate-500">
-                        Unavailable
+                        No disponible
                       </div>
                     )}
                     <p className="mt-2 truncate text-xs text-slate-700">{screenshot.name}</p>
@@ -534,22 +729,24 @@ export default function TestsViewersPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-600">No run screenshots detected.</p>
+              <p className="text-sm text-slate-600">No se detectaron capturas para esta corrida.</p>
             )}
           </CardContent>
         </Card>
       )}
 
       {run && (
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Tests</CardTitle>
-            <CardDescription>Each test includes result, output, and available artifacts.</CardDescription>
+            <CardDescription>
+              Cada test incluye resultado, salida y artefactos disponibles.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 md:grid-cols-[1fr_auto]">
               <Input
-                placeholder="Filter tests by title, status, or error..."
+                placeholder="Filtrar tests por título, estado o error..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
@@ -558,24 +755,24 @@ export default function TestsViewersPage() {
                 onChange={(event) => setTestFilter(event.target.value as TestFilter)}
               >
                 <option value="all">
-                  all ({tests.length})
+                  todos ({tests.length})
                 </option>
                 <option value="passed">
-                  passed ({testCounts.passed})
+                  aprobados ({testCounts.passed})
                 </option>
                 <option value="failed">
-                  failed ({testCounts.failed})
+                  fallidos ({testCounts.failed})
                 </option>
                 <option value="flaky">
-                  flaky ({testCounts.flaky})
+                  inestables ({testCounts.flaky})
                 </option>
                 <option value="skipped">
-                  skipped ({testCounts.skipped})
+                  omitidos ({testCounts.skipped})
                 </option>
               </Select>
             </div>
 
-            {loadingDetails && <p className="text-sm text-slate-600">Loading test details...</p>}
+            {loadingDetails && <p className="text-sm text-slate-600">Cargando detalle de tests...</p>}
 
             <div className="space-y-3">
               {filteredTests.map((testCase, index) => {
@@ -604,8 +801,8 @@ export default function TestsViewersPage() {
                       <div>
                         <p className="font-medium text-slate-900">{testCase.title}</p>
                         <p className="mt-1 text-xs text-slate-600">
-                          duration: {formatDuration(testCase.durationMs)} | expected:{" "}
-                          {testCase.expectedStatus ?? "-"}
+                          duración: {formatDuration(testCase.durationMs)} | esperado:{" "}
+                          {testCase.expectedStatus ? formatTestStatusLabel(testCase.expectedStatus) : "-"}
                         </p>
                       </div>
                       <TestResultBadge status={testCase.status} />
@@ -620,26 +817,26 @@ export default function TestsViewersPage() {
                     <div className="mt-3 grid gap-3 lg:grid-cols-2">
                       <div className="space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                          Output
+                          Salida
                         </p>
                         {output ? (
                           <pre className="max-h-64 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
                             {output}
                           </pre>
                         ) : (
-                          <p className="text-sm text-slate-600">No test-level output captured.</p>
+                          <p className="text-sm text-slate-600">No hay salida capturada a nivel test.</p>
                         )}
                       </div>
 
                       <div className="space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                          Screenshot
+                          Captura
                         </p>
                         {testCase.screenshotUrl ? (
                           <Link href={testCase.screenshotUrl} target="_blank" rel="noreferrer">
                             <Image
                               src={testCase.screenshotUrl}
-                              alt={`${testCase.title} screenshot`}
+                              alt={`captura de ${testCase.title}`}
                               width={1400}
                               height={900}
                               unoptimized
@@ -649,8 +846,8 @@ export default function TestsViewersPage() {
                         ) : (
                           <p className="text-sm text-slate-600">
                             {runScreenshots.length > 0
-                              ? `No test-bound screenshot. ${runScreenshots.length} run screenshot(s) available above.`
-                              : "No screenshot available."}
+                              ? `No hay captura asociada al test. Hay ${runScreenshots.length} captura(s) de corrida arriba.`
+                              : "No hay capturas disponibles."}
                           </p>
                         )}
                       </div>
@@ -658,7 +855,7 @@ export default function TestsViewersPage() {
 
                     <div className="mt-3 space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                        Responses
+                        Respuestas
                       </p>
                       {testCase.responseAttachments.length > 0 ? (
                         <div className="space-y-2">
@@ -670,24 +867,26 @@ export default function TestsViewersPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-600">No response attachments detected.</p>
+                        <p className="text-sm text-slate-600">
+                          No se detectaron adjuntos de respuesta.
+                        </p>
                       )}
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                       {testCase.traceUrl && (
                         <Link href={testCase.traceUrl} target="_blank" rel="noreferrer" className="underline">
-                          Open trace
+                          Abrir traza
                         </Link>
                       )}
                       {testCase.videoUrl && (
                         <Link href={testCase.videoUrl} target="_blank" rel="noreferrer" className="underline">
-                          Open video
+                          Abrir video
                         </Link>
                       )}
                       {run?.htmlReportUrl && (
                         <Link href={run.htmlReportUrl} target="_blank" rel="noreferrer" className="underline">
-                          Open HTML report
+                          Abrir reporte HTML
                         </Link>
                       )}
                     </div>
@@ -695,7 +894,7 @@ export default function TestsViewersPage() {
                     {otherAttachments.length > 0 && (
                       <div className="mt-3">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                          Other Attachments
+                          Otros Adjuntos
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {otherAttachments.map((attachment, attachmentIndex) => (
@@ -728,7 +927,7 @@ export default function TestsViewersPage() {
 
             {filteredTests.length === 0 && (
               <p className="text-sm text-slate-600">
-                No tests match this filter. Try changing status/search or run another suite.
+                No hay tests que coincidan con el filtro. Probá cambiar estado/búsqueda o correr otra suite.
               </p>
             )}
           </CardContent>

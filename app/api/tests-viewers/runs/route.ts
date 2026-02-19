@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ runs });
   } catch {
     return NextResponse.json(
-      { error: "Failed to read local Playwright artifacts." },
+      { error: "No se pudieron leer los artefactos locales de Playwright." },
       { status: 500 },
     );
   }

@@ -27,7 +27,7 @@ export async function GET(request: Request, context: RouteContext) {
   });
 
   if (!run) {
-    return NextResponse.json({ error: "run not found" }, { status: 404 });
+    return NextResponse.json({ error: "no se encontró la corrida" }, { status: 404 });
   }
 
   const [stdout, stderr] = await Promise.all([

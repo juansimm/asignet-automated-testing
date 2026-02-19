@@ -4,15 +4,16 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "QA Debug UI",
-  description: "Targets, AI scenario input, and Playwright specs workflow",
+  description: "Entornos, entrada de escenarios IA y flujo de specs Playwright",
 };
 
 const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/targets", label: "Targets" },
-  { href: "/ai", label: "AI" },
-  { href: "/specs", label: "Specs" },
-  { href: "/tests-viewers", label: "Tests Viewers" },
+  { href: "/", label: "Inicio" },
+  { href: "/targets", label: "URL Test Targets" },
+  { href: "/ai", label: "IA" },
+  { href: "/runs", label: "Ejecuciones" },
+  { href: "/specs", label: "Especificaciones" },
+  { href: "/tests-viewers", label: "Visor de Tests" },
 ];
 
 export default function RootLayout({
@@ -21,19 +22,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="border-b border-slate-200 bg-white">
+        <div className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/85 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
             <Link href="/" className="text-sm font-semibold tracking-wide text-slate-900">
               QA Debug UI
             </Link>
-            <nav className="flex items-center gap-2">
+            <nav className="flex flex-wrap items-center justify-end gap-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="rounded-md px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                  className="rounded-full border border-transparent px-3 py-1.5 text-sm text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900"
                 >
                   {link.label}
                 </Link>

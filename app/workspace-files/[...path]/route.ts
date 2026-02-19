@@ -14,6 +14,7 @@ const MIME_TYPES = new Map<string, string>([
   [".gif", "image/gif"],
   [".svg", "image/svg+xml"],
   [".json", "application/json; charset=utf-8"],
+  [".md", "text/markdown; charset=utf-8"],
   [".txt", "text/plain; charset=utf-8"],
   [".log", "text/plain; charset=utf-8"],
 ]);
@@ -22,6 +23,7 @@ const ALLOWED_ROOTS = [
   path.join(ROOT_DIR, "playwright", "tests", "screenshots"),
   path.join(ROOT_DIR, "playwright", "artifacts"),
   path.join(ROOT_DIR, "artifacts"),
+  path.join(ROOT_DIR, "specs"),
 ];
 
 type RouteContext = {
@@ -45,21 +47,21 @@ export async function GET(_request: Request, context: RouteContext) {
   const { path: pathSegments } = await context.params;
 
   if (!pathSegments?.length) {
-    return NextResponse.json({ error: "missing file path" }, { status: 400 });
+    return NextResponse.json({ error: "falta la ruta del archivo" }, { status: 400 });
   }
 
   const decodedPath = pathSegments.map((segment) => decodeURIComponent(segment));
   const candidatePath = path.resolve(ROOT_DIR, ...decodedPath);
 
   if (!isAllowedFilePath(candidatePath)) {
-    return NextResponse.json({ error: "invalid file path" }, { status: 400 });
+    return NextResponse.json({ error: "ruta de archivo inválida" }, { status: 400 });
   }
 
   try {
     const stat = await fs.stat(candidatePath);
 
     if (!stat.isFile()) {
-      return NextResponse.json({ error: "file not found" }, { status: 404 });
+      return NextResponse.json({ error: "archivo no encontrado" }, { status: 404 });
     }
 
     const file = await fs.readFile(candidatePath);
@@ -73,6 +75,6 @@ export async function GET(_request: Request, context: RouteContext) {
       },
     });
   } catch {
-    return NextResponse.json({ error: "file not found" }, { status: 404 });
+    return NextResponse.json({ error: "archivo no encontrado" }, { status: 404 });
   }
 }

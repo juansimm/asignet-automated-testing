@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as LogRequestListRequest;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "JSON de entrada inválido" }, { status: 400 });
   }
 
   const email = body.email?.trim();
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
   if (!email || !startDate || !endDate) {
     return NextResponse.json(
-      { error: "email, startDate, and endDate are required" },
+      { error: "email, startDate y endDate son obligatorios" },
       { status: 400 },
     );
   }
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
   if (!username || !password) {
     return NextResponse.json(
-      { error: "ASIGNET_USERNAME and ASIGNET_PASSWORD are required" },
+      { error: "ASIGNET_USERNAME y ASIGNET_PASSWORD son obligatorios" },
       { status: 500 },
     );
   }
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
   if (!loginResponse.ok) {
     return NextResponse.json(
       {
-        error: "Wayfast authentication failed",
+        error: "Falló la autenticación contra Wayfast",
         status: loginResponse.status,
         details: parseJson(loginText),
       },
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
   const token = extractToken(loginText);
   if (!token) {
     return NextResponse.json(
-      { error: "Failed to extract auth token from Wayfast response" },
+      { error: "No se pudo extraer el token de autenticación de la respuesta de Wayfast" },
       { status: 502 },
     );
   }
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
   if (!logsResponse.ok) {
     return NextResponse.json(
       {
-        error: "Failed to fetch Wayfast log request list",
+        error: "No se pudo obtener la lista LogRequestList de Wayfast",
         status: logsResponse.status,
         details: logsPayload,
       },

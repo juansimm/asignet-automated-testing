@@ -15,7 +15,7 @@ export async function POST(_request: Request, context: RouteContext) {
   const cancelled = await runService.cancelRun(id);
 
   if (!cancelled) {
-    return NextResponse.json({ error: "run process is not active" }, { status: 404 });
+    return NextResponse.json({ error: "el proceso de ejecución no está activo" }, { status: 404 });
   }
 
   await prisma.run.updateMany({

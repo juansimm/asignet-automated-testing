@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { Dirent } from "node:fs";
 import { promises as fs } from "node:fs";
-import { ARTIFACTS_DIR, toPosixPath } from "@/lib/constants";
+import { ARTIFACTS_DIR, ROOT_DIR, SPECS_DIR, toPosixPath } from "@/lib/constants";
 import { tailFile } from "@/lib/logs";
 import {
   parseReportFile,
@@ -10,7 +10,6 @@ import {
   type ParsedReportSummary,
   type ParsedTestCase,
 } from "@/lib/report-parser";
-import { ROOT_DIR } from "@/lib/constants";
 
 export type ViewerRunStatus = "QUEUED" | "RUNNING" | "PASSED" | "FAILED";
 
@@ -39,8 +38,34 @@ export type ViewerRunDetails = {
   failingTests: ParsedFailingTest[];
   flakyTests: string[];
   screenshots: ParsedAttachment[];
+  agentContext: AgentContext | null;
   stdout: string;
   stderr: string;
+};
+
+type AgentPhase = "planner" | "generator" | "healer";
+
+export type AgentRecord = {
+  phase: AgentPhase;
+  createdAt: string;
+  ok: boolean;
+  exitCode: number;
+  command: string;
+  requestFile: string | null;
+  planFile: string | null;
+  outputPlanFile: string | null;
+  recordFile: string;
+  stdout: string;
+  stderr: string;
+};
+
+export type AgentContext = {
+  requestFile: string | null;
+  planFile: string | null;
+  inputTask: string | null;
+  planner: AgentRecord | null;
+  generator: AgentRecord | null;
+  healer: AgentRecord | null;
 };
 
 type RawReport = {
@@ -50,6 +75,19 @@ type RawReport = {
   };
   errors?: unknown[];
   suites?: Array<{ title?: string; suites?: RawReport["suites"]; specs?: Array<{ title?: string }> }>;
+};
+
+type AgentRecordFile = {
+  createdAt?: string;
+  phase?: AgentPhase;
+  requestFile?: string | null;
+  planFile?: string | null;
+  outputPlanFile?: string | null;
+  command?: string;
+  exitCode?: number;
+  ok?: boolean;
+  stdout?: string;
+  stderr?: string;
 };
 
 async function pathExists(targetPath: string) {
@@ -88,6 +126,21 @@ function toViewerFileUrl(absolutePath: string) {
   }
 
   return toWorkspaceFileUrl(absolutePath);
+}
+
+function resolveUnderSpecs(relativePath: string | null | undefined) {
+  if (!relativePath) {
+    return null;
+  }
+
+  const resolved = path.resolve(ROOT_DIR, relativePath);
+  const specsRoot = path.resolve(SPECS_DIR);
+
+  if (!resolved.startsWith(`${specsRoot}${path.sep}`)) {
+    return null;
+  }
+
+  return resolved;
 }
 
 function resolveRunDir(runId: string) {
@@ -281,6 +334,177 @@ async function collectRunScreenshots(
   return screenshots;
 }
 
+function parseScenarioInput(content: string) {
+  const headingMatch = content.match(
+    /##\s*(?:Scenario Input|Input del Escenario|Entrada del Escenario)\s*([\s\S]*?)(?:\n##\s|\n#\s|$)/i,
+  );
+  const section = (headingMatch?.[1] ?? content).trim();
+
+  if (!section) {
+    return null;
+  }
+
+  return section.length > 9000 ? `${section.slice(0, 9000)}\n\n...` : section;
+}
+
+async function findLatestSpecFile(prefix: "request_" | "test-plan_", runStartedAt: string | null) {
+  let entries: Dirent[] = [];
+
+  try {
+    entries = await fs.readdir(SPECS_DIR, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  const files = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith(".md"))
+      .map(async (entry) => {
+        const absolutePath = path.join(SPECS_DIR, entry.name);
+        const stat = await fs.stat(absolutePath);
+        return {
+          relativePath: `specs/${entry.name}`,
+          mtimeMs: stat.mtimeMs,
+        };
+      }),
+  );
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  const runStartMs = runStartedAt ? new Date(runStartedAt).getTime() : null;
+  const sorted = files.sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  if (!runStartMs) {
+    return sorted[0]?.relativePath ?? null;
+  }
+
+  const windowMs = 24 * 60 * 60 * 1000;
+  const scoped = sorted.filter((file) => file.mtimeMs <= runStartMs + windowMs);
+  return (scoped[0] ?? sorted[0])?.relativePath ?? null;
+}
+
+async function readAgentRunRecords() {
+  const agentRunsDir = path.join(SPECS_DIR, "agent-runs");
+  let entries: Dirent[] = [];
+
+  try {
+    entries = await fs.readdir(agentRunsDir, { withFileTypes: true });
+  } catch {
+    return [] as AgentRecord[];
+  }
+
+  const records = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map(async (entry) => {
+        const absolutePath = path.join(agentRunsDir, entry.name);
+        const relativePath = `specs/agent-runs/${entry.name}`;
+
+        try {
+          const raw = await fs.readFile(absolutePath, "utf8");
+          const parsed = JSON.parse(raw) as AgentRecordFile;
+          if (!parsed.phase || !parsed.createdAt || !parsed.command) {
+            return null;
+          }
+
+          return {
+            phase: parsed.phase,
+            createdAt: parsed.createdAt,
+            ok: Boolean(parsed.ok),
+            exitCode: Number.isFinite(parsed.exitCode) ? Number(parsed.exitCode) : 1,
+            command: parsed.command,
+            requestFile: parsed.requestFile ?? null,
+            planFile: parsed.planFile ?? null,
+            outputPlanFile: parsed.outputPlanFile ?? null,
+            recordFile: relativePath,
+            stdout: parsed.stdout ?? "",
+            stderr: parsed.stderr ?? "",
+          } satisfies AgentRecord;
+        } catch {
+          return null;
+        }
+      }),
+  );
+
+  return records
+    .filter((record): record is AgentRecord => Boolean(record))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+function findBestAgentRecord(records: AgentRecord[], phase: AgentPhase, runStartedAt: string | null) {
+  const scoped = records.filter((record) => record.phase === phase);
+  if (scoped.length === 0) {
+    return null;
+  }
+
+  if (!runStartedAt) {
+    return scoped[0];
+  }
+
+  const runStartMs = new Date(runStartedAt).getTime();
+  const maxDiffMs = 24 * 60 * 60 * 1000;
+
+  let best: AgentRecord | null = null;
+  let bestDiff = Number.POSITIVE_INFINITY;
+
+  for (const record of scoped) {
+    const diff = Math.abs(new Date(record.createdAt).getTime() - runStartMs);
+    if (diff < bestDiff) {
+      best = record;
+      bestDiff = diff;
+    }
+  }
+
+  if (best && bestDiff <= maxDiffMs) {
+    return best;
+  }
+
+  return scoped[0];
+}
+
+async function buildAgentContext(runStartedAt: string | null): Promise<AgentContext | null> {
+  const records = await readAgentRunRecords();
+  const planner = findBestAgentRecord(records, "planner", runStartedAt);
+  const generator = findBestAgentRecord(records, "generator", runStartedAt);
+  const healer = findBestAgentRecord(records, "healer", runStartedAt);
+
+  const requestFile =
+    planner?.requestFile ??
+    generator?.requestFile ??
+    (await findLatestSpecFile("request_", runStartedAt));
+  const planFile =
+    planner?.outputPlanFile ??
+    generator?.planFile ??
+    (await findLatestSpecFile("test-plan_", runStartedAt));
+
+  const requestAbsolutePath = resolveUnderSpecs(requestFile);
+  let inputTask: string | null = null;
+
+  if (requestAbsolutePath) {
+    try {
+      const content = await fs.readFile(requestAbsolutePath, "utf8");
+      inputTask = parseScenarioInput(content);
+    } catch {
+      inputTask = null;
+    }
+  }
+
+  if (!planner && !generator && !healer && !requestFile && !planFile && !inputTask) {
+    return null;
+  }
+
+  return {
+    requestFile: requestFile ?? null,
+    planFile: planFile ?? null,
+    inputTask: inputTask ?? null,
+    planner: planner ?? null,
+    generator: generator ?? null,
+    healer: healer ?? null,
+  };
+}
+
 function resolveStatus(
   parsedSummary: {
     total: number;
@@ -414,6 +638,7 @@ export async function getViewerRunDetails(runId: string, lines = 600): Promise<V
     run.run.startedAt,
     run.run.finishedAt,
   );
+  const agentContext = await buildAgentContext(run.run.startedAt);
 
   return {
     run: run.run,
@@ -422,6 +647,7 @@ export async function getViewerRunDetails(runId: string, lines = 600): Promise<V
     failingTests: parsedReport.failingTests,
     flakyTests: parsedReport.flakyTests,
     screenshots,
+    agentContext,
     stdout,
     stderr,
   };

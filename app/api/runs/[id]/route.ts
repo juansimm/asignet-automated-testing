@@ -32,7 +32,7 @@ export async function GET(_request: Request, context: RouteContext) {
   });
 
   if (!run) {
-    return NextResponse.json({ error: "run not found" }, { status: 404 });
+    return NextResponse.json({ error: "no se encontró la corrida" }, { status: 404 });
   }
 
   const reportAbsolutePath = fromStoredPath(run.reportJsonPath);

@@ -49,7 +49,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to create target");
+        throw new Error(payload.error ?? "No se pudo crear el entorno");
       }
 
       setName("");
@@ -81,7 +81,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to update target");
+        throw new Error(payload.error ?? "No se pudo actualizar el entorno");
       }
 
       setEditingId(null);
@@ -104,7 +104,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to delete target");
+        throw new Error(payload.error ?? "No se pudo eliminar el entorno");
       }
 
       await loadTargets();
@@ -118,21 +118,23 @@ export default function TargetsPage() {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Targets</h1>
-        <p className="text-sm text-slate-600">Add and maintain environment base URLs for AI/planning context.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">URL Test Targets</h1>
+        <p className="text-sm text-slate-600">
+          Agregá y mantené base URLs de ambientes para contexto de IA/planificación.
+        </p>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Add Target</CardTitle>
-          <CardDescription>Use clear names like `staging`, `qa`, `production-mirror`.</CardDescription>
+          <CardTitle>Agregar Entorno</CardTitle>
+          <CardDescription>Usá nombres claros como `staging`, `qa`, `produccion-mirror`.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-[1fr_2fr_auto]">
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Target name"
+              placeholder="Nombre del entorno"
             />
             <Input
               value={baseUrl}
@@ -140,7 +142,7 @@ export default function TargetsPage() {
               placeholder="https://example.com"
             />
             <Button onClick={handleCreate} disabled={loading || !name || !baseUrl}>
-              Create
+              Crear
             </Button>
           </div>
         </CardContent>
@@ -148,17 +150,17 @@ export default function TargetsPage() {
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Registered Targets</CardTitle>
+          <CardTitle>Entornos Registrados</CardTitle>
         </CardHeader>
         <CardContent>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Nombre</TableHead>
                 <TableHead>Base URL</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Creado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -184,7 +186,7 @@ export default function TargetsPage() {
                         <span className="font-mono text-xs">{target.baseUrl}</span>
                       )}
                     </TableCell>
-                    <TableCell>{new Date(target.createdAt).toLocaleString()}</TableCell>
+                    <TableCell>{new Date(target.createdAt).toLocaleString("es-AR")}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         {isEditing ? (
@@ -194,7 +196,7 @@ export default function TargetsPage() {
                               onClick={() => handleSave(target.id)}
                               disabled={loading || !editName || !editBaseUrl}
                             >
-                              Save
+                              Guardar
                             </Button>
                             <Button
                               size="sm"
@@ -202,13 +204,13 @@ export default function TargetsPage() {
                               onClick={() => setEditingId(null)}
                               disabled={loading}
                             >
-                              Cancel
+                              Cancelar
                             </Button>
                           </>
                         ) : (
                           <>
                             <Button size="sm" variant="secondary" onClick={() => startEdit(target)}>
-                              Edit
+                              Editar
                             </Button>
                             <Button
                               size="sm"
@@ -216,7 +218,7 @@ export default function TargetsPage() {
                               onClick={() => handleDelete(target.id)}
                               disabled={loading}
                             >
-                              Delete
+                              Eliminar
                             </Button>
                           </>
                         )}
@@ -228,7 +230,9 @@ export default function TargetsPage() {
             </TableBody>
           </Table>
           {targets.length === 0 && (
-            <p className="mt-3 text-sm text-slate-600">No targets yet. Add one to keep environment context organized.</p>
+            <p className="mt-3 text-sm text-slate-600">
+              Aún no hay entornos. Agregá uno para mantener el contexto de ambientes ordenado.
+            </p>
           )}
         </CardContent>
       </Card>
