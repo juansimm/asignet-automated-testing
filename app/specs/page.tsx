@@ -2,6 +2,8 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 import type { Dirent } from "node:fs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AgentRunner } from "@/components/agent-runner";
+import { SpecsCleaner } from "@/components/specs-cleaner";
 import { PLAYWRIGHT_TESTS_DIR, SPECS_DIR, toPosixPath } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -70,17 +72,29 @@ export default async function SpecsPage() {
     listFiles(PLAYWRIGHT_TESTS_DIR, ".spec.ts"),
   ]);
   const latestSpecPreview = await readLatestSpecPreview(specFiles);
+  const requestFiles = specFiles
+    .map((file) => file.relativePath)
+    .filter((relativePath) => path.basename(relativePath).startsWith("request_"));
+  const planFiles = specFiles
+    .map((file) => file.relativePath)
+    .filter((relativePath) => path.basename(relativePath).startsWith("test-plan_"));
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Specs And Agent Flow</h1>
+    <div className="space-y-5">
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
+        <h1 className="text-2xl font-semibold tracking-tight">Specs And Agent Flow</h1>
         <p className="text-sm text-slate-600">
           Generated specs are files on disk. Planner, generator, and healer run from your agent-enabled IDE loop, not this web app.
         </p>
+        <div className="mt-3">
+          <SpecsCleaner />
+        </div>
+        <div className="mt-3">
+          <AgentRunner requestFiles={requestFiles} planFiles={planFiles} />
+        </div>
       </div>
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle>How To Run</CardTitle>
           <CardDescription>Use your generated request file and run the three agents in order.</CardDescription>
@@ -93,7 +107,7 @@ export default async function SpecsPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Spec Requests</CardTitle>
             <CardDescription>Markdown requests generated from `/ai`.</CardDescription>
@@ -113,7 +127,7 @@ export default async function SpecsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Playwright Tests</CardTitle>
             <CardDescription>Current test specs available for execution.</CardDescription>
@@ -134,7 +148,7 @@ export default async function SpecsPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle>Latest Spec Preview</CardTitle>
           <CardDescription>First section of the newest request file in `specs/`.</CardDescription>

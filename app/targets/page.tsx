@@ -116,16 +116,16 @@ export default function TargetsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Targets</h1>
-        <p className="text-sm text-slate-600">Add and maintain execution targets.</p>
+    <div className="space-y-5">
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
+        <h1 className="text-2xl font-semibold tracking-tight">Targets</h1>
+        <p className="text-sm text-slate-600">Add and maintain environment base URLs for AI/planning context.</p>
       </div>
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle>Add Target</CardTitle>
-          <CardDescription>Each target maps to a `BASE_URL` used by Playwright runs.</CardDescription>
+          <CardDescription>Use clear names like `staging`, `qa`, `production-mirror`.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-[1fr_2fr_auto]">
@@ -146,7 +146,7 @@ export default function TargetsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle>Registered Targets</CardTitle>
         </CardHeader>
@@ -228,7 +228,7 @@ export default function TargetsPage() {
             </TableBody>
           </Table>
           {targets.length === 0 && (
-            <p className="mt-3 text-sm text-slate-600">No targets yet. Create one to run suites.</p>
+            <p className="mt-3 text-sm text-slate-600">No targets yet. Add one to keep environment context organized.</p>
           )}
         </CardContent>
       </Card>

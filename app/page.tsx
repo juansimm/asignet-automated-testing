@@ -5,22 +5,12 @@ const pages = [
   {
     href: "/targets",
     title: "Targets",
-    description: "Create and manage base URLs you run suites against.",
-  },
-  {
-    href: "/suites",
-    title: "Suites",
-    description: "Discover Playwright test suites from playwright/tests.",
-  },
-  {
-    href: "/runs",
-    title: "Runs",
-    description: "Trigger runs, monitor live logs, and inspect reports.",
+    description: "Create and manage base URLs for environments and test contexts.",
   },
   {
     href: "/ai",
     title: "AI",
-    description: "Build scenario input from Wayfast logs and generate Playwright agent requests.",
+    description: "Ingest logs without DBO dependency and create scenario-driven agent requests.",
   },
   {
     href: "/specs",
@@ -35,7 +25,7 @@ export default function Home() {
       <div>
         <h1 className="text-2xl font-semibold">QA Debug UI</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Local MVP for running Playwright suites and collecting debugging artifacts.
+          Focused workspace for targets, AI-driven scenario prep, and specs.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">

@@ -4,14 +4,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "QA Debug UI",
-  description: "Run and debug Playwright suites against multiple targets",
+  description: "Targets, AI scenario input, and Playwright specs workflow",
 };
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/targets", label: "Targets" },
-  { href: "/suites", label: "Suites" },
-  { href: "/runs", label: "Runs" },
   { href: "/ai", label: "AI" },
   { href: "/specs", label: "Specs" },
 ];
