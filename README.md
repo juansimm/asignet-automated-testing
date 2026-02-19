@@ -64,6 +64,16 @@ bun run dev
 - Click generate to create `playwright/tests/generated_<timestamp>.spec.ts`.
 - The file is a template with TODO markers for future agent integration.
 
+## Wayfast Logs (optional)
+
+Configure these environment variables to pull Wayfast log request data in `/ai`:
+
+- `ASIGNET_BASE_URL` (defaults to `https://dbo.asignet.com/asignetrestapi`)
+- `ASIGNET_USERNAME`
+- `ASIGNET_PASSWORD`
+
+Then use the **Wayfast Logs** card to fetch logs by email and date range and append them to a scenario.
+
 ## Artifacts
 
 All run output is stored under:
