@@ -8,6 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "playwright test --config=playwright/playwright.config.ts",
+    "agents:init:vscode": "playwright init-agents --loop=vscode --prompts -c playwright/playwright.config.ts",
+    "agents:init:claude": "playwright init-agents --loop=claude --prompts -c playwright/playwright.config.ts",
+    "agents:init:copilot": "playwright init-agents --loop=copilot --prompts -c playwright/playwright.config.ts",
+    "agents:mcp": "playwright run-test-mcp-server",
     "seed": "prisma db seed",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"

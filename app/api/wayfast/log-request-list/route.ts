@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildScenarioFromWayfastEntries, normalizeWayfastEntries } from "@/lib/wayfast";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -128,6 +129,8 @@ export async function POST(request: Request) {
   });
   const logsText = await logsResponse.text();
   const logsPayload = parseJson(logsText);
+  const entries = normalizeWayfastEntries(logsPayload);
+  const scenarioDraft = buildScenarioFromWayfastEntries(entries);
 
   if (!logsResponse.ok) {
     return NextResponse.json(
@@ -148,5 +151,7 @@ export async function POST(request: Request) {
       host,
     },
     data: logsPayload,
+    entries,
+    scenarioDraft,
   });
 }

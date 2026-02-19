@@ -20,7 +20,7 @@ const pages = [
   {
     href: "/ai",
     title: "AI",
-    description: "Generate a placeholder spec file from a scenario markdown.",
+    description: "Build scenario input from Wayfast logs and generate Playwright agent requests.",
   },
 ];
 
