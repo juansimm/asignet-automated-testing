@@ -37,9 +37,9 @@ export function SpecsCleaner() {
       }
 
       if (dryRun) {
-        setMessage(`Simulación: ${payload.total} archivo(s) pueden limpiarse.`);
+        setMessage(`Simulación: ${payload.total} archivo(s) en specs/tests pueden limpiarse.`);
       } else {
-        setMessage(`Se limpiaron ${payload.total} archivo(s). Recargando...`);
+        setMessage(`Limpieza completa: ${payload.total} archivo(s) eliminados. Recargando...`);
         window.setTimeout(() => window.location.reload(), 500);
       }
     } catch (requestError) {
@@ -52,10 +52,10 @@ export function SpecsCleaner() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button size="sm" variant="secondary" disabled={loading} onClick={() => runCleanup(true)}>
-        Previsualizar Limpieza
+        Previsualizar Limpieza Total
       </Button>
-      <Button size="sm" variant="destructive" disabled={loading} onClick={() => runCleanup(false)}>
-        Limpiar Archivos Generados
+      <Button size="sm" variant="new" disabled={loading} onClick={() => runCleanup(false)}>
+        Limpiar Todo lo Generado
       </Button>
       {message && <p className="text-xs text-slate-600">{message}</p>}
     </div>

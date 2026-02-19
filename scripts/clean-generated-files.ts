@@ -43,19 +43,23 @@ async function listFiles(baseDir: string, extension: string) {
   return output;
 }
 
-async function collectSpecMarkdowns() {
-  const files = await listFiles(SPECS_DIR, ".md");
+const PROTECTED_SPEC_FILES = new Set(["README.md", ".gitkeep"]);
+
+async function collectSpecsFiles() {
+  const files = await listFiles(SPECS_DIR, "");
   const matched: CleanupItem[] = [];
 
   for (const absolute of files) {
     const filename = path.basename(absolute);
-    if (filename.startsWith("request_") || filename.startsWith("test-plan_")) {
-      matched.push({
-        absolutePath: absolute,
-        relativePath: toPosixPath(path.relative(ROOT_DIR, absolute)),
-        reason: "generated-spec-markdown",
-      });
+    if (PROTECTED_SPEC_FILES.has(filename)) {
+      continue;
     }
+
+    matched.push({
+      absolutePath: absolute,
+      relativePath: toPosixPath(path.relative(ROOT_DIR, absolute)),
+      reason: "generated-spec-file",
+    });
   }
 
   return matched;
@@ -95,13 +99,45 @@ async function collectGeneratedTests() {
   return matched;
 }
 
+async function removeEmptyDirs(baseDir: string) {
+  async function walk(currentDir: string): Promise<boolean> {
+    let entries: Dirent[];
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+
+    let hasContent = false;
+    for (const entry of entries) {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        const childHasContent = await walk(absolutePath);
+        if (childHasContent) {
+          hasContent = true;
+        }
+      } else {
+        hasContent = true;
+      }
+    }
+
+    if (!hasContent && currentDir !== baseDir) {
+      await fs.rmdir(currentDir).catch(() => {});
+    }
+
+    return hasContent;
+  }
+
+  await walk(baseDir);
+}
+
 async function main() {
   const args = new Set(process.argv.slice(2));
   const dryRun = !args.has("--yes");
   const includeGeneratedTests = !args.has("--specs-only");
 
   const targets: CleanupItem[] = [];
-  targets.push(...(await collectSpecMarkdowns()));
+  targets.push(...(await collectSpecsFiles()));
   if (includeGeneratedTests) {
     targets.push(...(await collectGeneratedTests()));
   }
@@ -122,6 +158,7 @@ async function main() {
   }
 
   await Promise.all(targets.map((item) => fs.unlink(item.absolutePath)));
+  await removeEmptyDirs(SPECS_DIR);
   console.log(`\nDeleted ${targets.length} generated file(s).`);
 }
 

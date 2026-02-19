@@ -35,6 +35,11 @@ type RunDetailsResponse = {
 };
 
 type TestFilter = "all" | "passed" | "failed" | "flaky" | "skipped";
+type IndexedTest = {
+  index: number;
+  key: string;
+  testCase: ParsedTestCaseDto;
+};
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -261,6 +266,7 @@ export default function TestsViewersPage() {
   const [stderr, setStderr] = useState("");
   const [search, setSearch] = useState("");
   const [testFilter, setTestFilter] = useState<TestFilter>("all");
+  const [focusedTestIndex, setFocusedTestIndex] = useState<number | null>(null);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -406,6 +412,16 @@ export default function TestsViewersPage() {
     return () => clearInterval(detailsIntervalId);
   }, [refreshRunDetails, run?.status, selectedRunId]);
 
+  useEffect(() => {
+    setFocusedTestIndex(null);
+  }, [selectedRunId]);
+
+  useEffect(() => {
+    if (focusedTestIndex != null && !tests[focusedTestIndex]) {
+      setFocusedTestIndex(null);
+    }
+  }, [focusedTestIndex, tests]);
+
   const runOutput = useMemo(() => {
     if (!stdout && !stderr) {
       return "Sin salida por el momento.";
@@ -427,10 +443,21 @@ export default function TestsViewersPage() {
     );
   }, [tests]);
 
+  const indexedTests = useMemo<IndexedTest[]>(
+    () =>
+      tests.map((testCase, index) => ({
+        index,
+        key: `${testCase.title}-${index}`,
+        testCase,
+      })),
+    [tests],
+  );
+
   const filteredTests = useMemo(() => {
     const loweredSearch = search.trim().toLowerCase();
 
-    return tests.filter((testCase) => {
+    return indexedTests.filter((item) => {
+      const { testCase } = item;
       const group = getTestStatusGroup(testCase.status);
       const matchesFilter = testFilter === "all" || testFilter === group;
 
@@ -448,15 +475,54 @@ export default function TestsViewersPage() {
         (testCase.error ?? "").toLowerCase().includes(loweredSearch)
       );
     });
-  }, [search, testFilter, tests]);
+  }, [indexedTests, search, testFilter]);
+
+  const metricsRuns = useMemo(() => {
+    return [...runs].slice(0, 10).reverse();
+  }, [runs]);
+
+  const metrics = useMemo(() => {
+    const totals = runs.reduce(
+      (acc, item) => {
+        acc.passed += item.passed;
+        acc.failed += item.failed;
+        acc.flaky += item.flaky;
+        return acc;
+      },
+      { passed: 0, failed: 0, flaky: 0 },
+    );
+    const total = totals.passed + totals.failed + totals.flaky;
+
+    return {
+      ...totals,
+      total,
+      passRate: total > 0 ? Math.round((totals.passed / total) * 100) : 0,
+    };
+  }, [runs]);
+
+  const focusedTest = focusedTestIndex != null ? tests[focusedTestIndex] ?? null : null;
+  const focusedVisibleIndex = focusedTestIndex == null
+    ? -1
+    : filteredTests.findIndex((item) => item.index === focusedTestIndex);
+
+  const goToFocusedRelative = (direction: -1 | 1) => {
+    if (focusedVisibleIndex < 0) {
+      return;
+    }
+    const next = filteredTests[focusedVisibleIndex + direction];
+    if (!next) {
+      return;
+    }
+    setFocusedTestIndex(next.index);
+  };
 
   const noRuns = !loadingRuns && runs.length === 0;
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white via-sky-50 to-slate-100 p-5 shadow-sm">
-        <h1 className="text-2xl font-semibold">Visor de Tests</h1>
-        <p className="mt-1 text-sm text-slate-700">
+    <div className="space-y-3.5 text-[0.95rem]">
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white via-sky-50 to-slate-100 p-4 shadow-sm">
+        <h1 className="text-[1.55rem] font-semibold">Visor de Tests</h1>
+        <p className="mt-1 text-[0.92rem] text-slate-700">
           Explorá ejecuciones locales de Playwright (`bun run test` y corridas del flujo IA) con
           resultado por test, salida, respuestas, contexto de agentes y capturas.
         </p>
@@ -502,6 +568,88 @@ export default function TestsViewersPage() {
           )}
         </CardContent>
       </Card>
+
+      {runs.length > 0 && (
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle>Dashboard de Métricas</CardTitle>
+            <CardDescription>
+              Tendencia de aprobados/fallidos/inestables por corrida (últimas {metricsRuns.length}).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-2.5 md:grid-cols-4">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2.5">
+                <p className="text-[0.68rem] uppercase tracking-[0.12em] text-emerald-700">Aprobados</p>
+                <p className="mt-1 text-lg font-semibold text-emerald-900">{metrics.passed}</p>
+              </div>
+              <div className="rounded-md border border-red-200 bg-red-50 p-2.5">
+                <p className="text-[0.68rem] uppercase tracking-[0.12em] text-red-700">Fallidos</p>
+                <p className="mt-1 text-lg font-semibold text-red-900">{metrics.failed}</p>
+              </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5">
+                <p className="text-[0.68rem] uppercase tracking-[0.12em] text-amber-700">Inestables</p>
+                <p className="mt-1 text-lg font-semibold text-amber-900">{metrics.flaky}</p>
+              </div>
+              <div className="rounded-md border border-sky-200 bg-sky-50 p-2.5">
+                <p className="text-[0.68rem] uppercase tracking-[0.12em] text-sky-700">Tasa de Aprobación</p>
+                <p className="mt-1 text-lg font-semibold text-sky-900">{metrics.passRate}%</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-2.5">
+              <div className="mb-2 flex flex-wrap items-center gap-2.5 text-[0.76rem]">
+                <span className="inline-flex items-center gap-1 text-slate-700">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  aprobados
+                </span>
+                <span className="inline-flex items-center gap-1 text-slate-700">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  fallidos
+                </span>
+                <span className="inline-flex items-center gap-1 text-slate-700">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  inestables
+                </span>
+              </div>
+              <div className="overflow-x-auto pb-1">
+                <div className="flex h-32 min-w-max items-end gap-1.5">
+                  {metricsRuns.map((metricRun) => {
+                    const total = Math.max(metricRun.passed + metricRun.failed + metricRun.flaky, 1);
+                    const passedPct = (metricRun.passed / total) * 100;
+                    const failedPct = (metricRun.failed / total) * 100;
+                    const flakyPct = (metricRun.flaky / total) * 100;
+                    const isSelected = metricRun.id === selectedRunId;
+
+                    return (
+                      <button
+                        key={metricRun.id}
+                        type="button"
+                        onClick={() => setSelectedRunId(metricRun.id)}
+                        className="group flex w-20 shrink-0 flex-col items-center"
+                        title={`${metricRun.id} | A:${metricRun.passed} F:${metricRun.failed} I:${metricRun.flaky}`}
+                      >
+                        <div
+                          className={`relative flex h-24 w-full flex-col justify-end overflow-hidden rounded-md border ${
+                            isSelected ? "border-sky-500 shadow-sm" : "border-slate-200"
+                          }`}
+                        >
+                          <div className="w-full bg-emerald-500/90" style={{ height: `${passedPct}%` }} />
+                          <div className="w-full bg-red-500/90" style={{ height: `${failedPct}%` }} />
+                          <div className="w-full bg-amber-500/90" style={{ height: `${flakyPct}%` }} />
+                        </div>
+                        <p className="mt-1 w-full truncate text-center font-mono text-[10px] text-slate-600">
+                          {metricRun.id.slice(0, 6)}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {run && (
         <Card className="border-slate-200 shadow-sm">
@@ -765,7 +913,8 @@ export default function TestsViewersPage() {
             {loadingDetails && <p className="text-sm text-slate-600">Cargando detalle de tests...</p>}
 
             <div className="space-y-3">
-              {filteredTests.map((testCase, index) => {
+              {filteredTests.map((item) => {
+                const { testCase, index, key } = item;
                 const output = [
                   testCase.stdout ? `[stdout]\n${testCase.stdout}` : "",
                   testCase.stderr ? `[stderr]\n${testCase.stderr}` : "",
@@ -784,7 +933,7 @@ export default function TestsViewersPage() {
 
                 return (
                   <div
-                    key={`${testCase.title}-${index}`}
+                    key={key}
                     className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -795,7 +944,17 @@ export default function TestsViewersPage() {
                           {testCase.expectedStatus ? formatTestStatusLabel(testCase.expectedStatus) : "-"}
                         </p>
                       </div>
-                      <TestResultBadge status={testCase.status} />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFocusedTestIndex(index)}
+                        >
+                          Inspector
+                        </Button>
+                        <TestResultBadge status={testCase.status} />
+                      </div>
                     </div>
 
                     {testCase.error && (
@@ -922,6 +1081,150 @@ export default function TestsViewersPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {focusedTest && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-[2px]"
+          onClick={() => setFocusedTestIndex(null)}
+        >
+          <aside
+            className="h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 p-4 backdrop-blur">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Inspector de Test</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{focusedTest.title}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <TestResultBadge status={focusedTest.status} />
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setFocusedTestIndex(null)}>
+                    Cerrar
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Duración</p>
+                  <p className="text-sm font-medium">{formatDuration(focusedTest.durationMs)}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Esperado</p>
+                  <p className="text-sm font-medium">
+                    {focusedTest.expectedStatus ? formatTestStatusLabel(focusedTest.expectedStatus) : "-"}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Posición</p>
+                  <p className="text-sm font-medium">
+                    {focusedVisibleIndex >= 0 ? `${focusedVisibleIndex + 1} / ${filteredTests.length}` : "-"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={focusedVisibleIndex <= 0}
+                  onClick={() => goToFocusedRelative(-1)}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={focusedVisibleIndex < 0 || focusedVisibleIndex >= filteredTests.length - 1}
+                  onClick={() => goToFocusedRelative(1)}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-4">
+              {focusedTest.error && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Error</p>
+                  <pre className="mt-2 overflow-auto rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                    {focusedTest.error}
+                  </pre>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Salida</p>
+                {focusedTest.stdout || focusedTest.stderr ? (
+                  <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+                    {[focusedTest.stdout ? `[stdout]\n${focusedTest.stdout}` : "", focusedTest.stderr ? `[stderr]\n${focusedTest.stderr}` : ""]
+                      .filter(Boolean)
+                      .join("\n\n")}
+                  </pre>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-600">No hay salida capturada a nivel test.</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Captura</p>
+                {focusedTest.screenshotUrl ? (
+                  <Link href={focusedTest.screenshotUrl} target="_blank" rel="noreferrer" className="mt-2 block">
+                    <Image
+                      src={focusedTest.screenshotUrl}
+                      alt={`captura de ${focusedTest.title}`}
+                      width={1400}
+                      height={900}
+                      unoptimized
+                      className="h-auto max-h-[22rem] w-full rounded-md border border-slate-200 object-contain"
+                    />
+                  </Link>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-600">No hay captura asociada a este test.</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Respuestas</p>
+                {focusedTest.responseAttachments.length > 0 ? (
+                  <div className="mt-2 space-y-2">
+                    {focusedTest.responseAttachments.map((attachment, responseIndex) => (
+                      <ResponseAttachmentViewer
+                        key={`${attachment.name}-${attachment.path}-${responseIndex}`}
+                        attachment={attachment}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-600">No se detectaron adjuntos de respuesta.</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Navegación de Artefactos</p>
+                <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                  {focusedTest.traceUrl && (
+                    <Link href={focusedTest.traceUrl} target="_blank" rel="noreferrer" className="underline">
+                      Abrir traza
+                    </Link>
+                  )}
+                  {focusedTest.videoUrl && (
+                    <Link href={focusedTest.videoUrl} target="_blank" rel="noreferrer" className="underline">
+                      Abrir video
+                    </Link>
+                  )}
+                  {run?.htmlReportUrl && (
+                    <Link href={run.htmlReportUrl} target="_blank" rel="noreferrer" className="underline">
+                      Abrir reporte HTML
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
       )}
     </div>
   );

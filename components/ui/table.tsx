@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div className="w-full overflow-auto">
-      <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
+      <table className={cn("w-full caption-bottom text-[0.96rem]", className)} {...props} />
     </div>
   );
 }
@@ -20,7 +20,10 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
-      className={cn("border-b border-slate-200 transition-colors hover:bg-slate-50 data-[state=selected]:bg-slate-50", className)}
+      className={cn(
+        "border-b border-[#d4e4f1] transition-colors hover:bg-[#f2f8fd] data-[state=selected]:bg-[#edf6fc]",
+        className,
+      )}
       {...props}
     />
   );
@@ -30,7 +33,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       className={cn(
-        "h-10 px-3 text-left align-middle text-xs font-medium uppercase tracking-wide text-slate-600",
+        "h-11 px-3.5 text-left align-middle text-[0.78rem] font-semibold uppercase tracking-[0.11em] text-[#3f607a]",
         className,
       )}
       {...props}
@@ -39,7 +42,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <td className={cn("p-3 align-middle", className)} {...props} />;
+  return <td className={cn("p-3.5 align-middle", className)} {...props} />;
 }
 
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell };
