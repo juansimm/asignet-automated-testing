@@ -173,11 +173,19 @@ export default function RunsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Runs</h1>
-        <p className="text-sm text-slate-600">
-          Trigger Playwright runs and track status live. Only one run can execute at a time.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Runs</h1>
+          <p className="text-sm text-slate-600">
+            Trigger Playwright runs and track status live. Only one run can execute at a time.
+          </p>
+        </div>
+        <Link
+          href="/tests-viewers"
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100"
+        >
+          Open Tests Viewers
+        </Link>
       </div>
 
       {runtimeConfig && (
@@ -308,12 +316,20 @@ export default function RunsPage() {
                     {(run.passed ?? 0)}/{(run.failed ?? 0)}/{(run.flaky ?? 0)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link
-                      href={`/runs/${run.id}`}
-                      className="rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                    >
-                      Open
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/tests-viewers?runId=${run.id}`}
+                        className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium hover:bg-slate-100"
+                      >
+                        Viewer
+                      </Link>
+                      <Link
+                        href={`/runs/${run.id}`}
+                        className="rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                      >
+                        Open
+                      </Link>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

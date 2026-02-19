@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -251,6 +252,12 @@ export default function RunDetailsPage() {
           <p className="text-sm text-slate-600">Live logs and report details for this execution.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href={`/tests-viewers?runId=${runId}`}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100"
+          >
+            Open in Tests Viewers
+          </Link>
           <Button
             variant="secondary"
             onClick={() => {
@@ -418,14 +425,26 @@ export default function RunDetailsPage() {
                   </TableCell>
                   <TableCell>
                     {testCase.screenshotUrl ? (
-                      <Link
-                        href={testCase.screenshotUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-slate-900 underline"
-                      >
-                        Screenshot
-                      </Link>
+                      <div className="space-y-1">
+                        <Link href={testCase.screenshotUrl} target="_blank" rel="noreferrer">
+                          <Image
+                            src={testCase.screenshotUrl}
+                            alt={`${testCase.title} screenshot`}
+                            width={320}
+                            height={180}
+                            unoptimized
+                            className="h-auto max-h-24 w-40 rounded-md border border-slate-200 object-contain"
+                          />
+                        </Link>
+                        <Link
+                          href={testCase.screenshotUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-slate-900 underline"
+                        >
+                          Open
+                        </Link>
+                      </div>
                     ) : (
                       "-"
                     )}

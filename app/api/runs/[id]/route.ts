@@ -57,6 +57,7 @@ export async function GET(_request: Request, context: RouteContext) {
       flaky: parsedReport?.summary.flaky ?? run.flaky ?? 0,
       durationMs: parsedReport?.summary.durationMs ?? run.durationMs ?? 0,
     },
+    tests: parsedReport?.tests ?? [],
     failingTests: parsedReport?.failingTests ?? [],
     flakyTests: parsedReport?.flakyTests ?? [],
   });

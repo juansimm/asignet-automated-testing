@@ -1,6 +1,6 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { RunStatus } from "@prisma/client";
+import { Prisma, RunStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseReportFile } from "@/lib/report-parser";
 import {
@@ -76,28 +76,42 @@ async function resolveFailedOnlyPattern(sourceRunId: string) {
 }
 
 export async function GET() {
-  const runs = await prisma.run.findMany({
-    include: {
-      target: true,
-    },
-    orderBy: {
-      startedAt: "desc",
-    },
-    take: 200,
-  });
+  try {
+    const runs = await prisma.run.findMany({
+      include: {
+        target: true,
+      },
+      orderBy: {
+        startedAt: "desc",
+      },
+      take: 200,
+    });
 
-  return NextResponse.json({
-    runtimeConfig: {
-      runTimeoutMs: RunService.getTimeoutMsFromEnv(),
-      retries: getRetriesFromEnv(),
-    },
-    runs: runs.map((run) => ({
-      ...run,
-      htmlReportUrl: toArtifactsUrl(run.htmlReportPath),
-      stdoutUrl: toArtifactsUrl(run.stdoutPath),
-      stderrUrl: toArtifactsUrl(run.stderrPath),
-    })),
-  });
+    return NextResponse.json({
+      runtimeConfig: {
+        runTimeoutMs: RunService.getTimeoutMsFromEnv(),
+        retries: getRetriesFromEnv(),
+      },
+      runs: runs.map((run) => ({
+        ...run,
+        htmlReportUrl: toArtifactsUrl(run.htmlReportPath),
+        stdoutUrl: toArtifactsUrl(run.stdoutPath),
+        stderrUrl: toArtifactsUrl(run.stderrPath),
+      })),
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+      return NextResponse.json(
+        {
+          error:
+            "Database schema is not initialized. Run `bun run prisma:migrate` and `bun run seed`.",
+        },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json({ error: "Failed to load runs" }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {

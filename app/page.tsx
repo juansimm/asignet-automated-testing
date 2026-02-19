@@ -17,6 +17,12 @@ const pages = [
     title: "Specs",
     description: "View generated specs and current test files for planner/generator/healer flow.",
   },
+  {
+    href: "/tests-viewers",
+    title: "Tests Viewers",
+    description:
+      "Inspect the latest runs with per-test outputs, status, responses, and screenshots.",
+  },
 ];
 
 export default function Home() {

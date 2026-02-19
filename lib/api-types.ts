@@ -52,10 +52,43 @@ export type ParsedFailingTestDto = {
   videoUrl: string | null;
 };
 
+export type ParsedTestCaseDto = {
+  title: string;
+  status: string;
+  expectedStatus: string | null;
+  durationMs: number | null;
+  error: string | null;
+  stdout: string;
+  stderr: string;
+  attachments: ParsedAttachmentDto[];
+  responseAttachments: ParsedAttachmentDto[];
+  traceUrl: string | null;
+  screenshotUrl: string | null;
+  videoUrl: string | null;
+};
+
 export type RunSummaryDto = {
   total: number;
   passed: number;
   failed: number;
   flaky: number;
   durationMs: number;
+};
+
+export type ViewerRunDto = {
+  id: string;
+  suiteName: string;
+  status: RunStatusDto;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  total: number;
+  passed: number;
+  failed: number;
+  flaky: number;
+  htmlReportUrl: string | null;
+  reportJsonUrl: string | null;
+  stdoutUrl: string | null;
+  stderrUrl: string | null;
+  source: "artifacts";
 };
