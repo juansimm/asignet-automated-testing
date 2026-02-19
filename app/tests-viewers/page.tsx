@@ -457,7 +457,7 @@ export default function TestsViewersPage() {
       <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white via-sky-50 to-slate-100 p-5 shadow-sm">
         <h1 className="text-2xl font-semibold">Visor de Tests</h1>
         <p className="mt-1 text-sm text-slate-700">
-          Explorá ejecuciones locales de Playwright (`bun run test` y corridas disparadas) con
+          Explorá ejecuciones locales de Playwright (`bun run test` y corridas del flujo IA) con
           resultado por test, salida, respuestas, contexto de agentes y capturas.
         </p>
       </div>
@@ -470,7 +470,7 @@ export default function TestsViewersPage() {
           <CardDescription>Elegí una corrida para inspeccionar. Las más nuevas aparecen primero.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <Select value={selectedRunId} onChange={(event) => setSelectedRunId(event.target.value)}>
               <option value="" disabled>
                 {loadingRuns ? "Cargando ejecuciones..." : "Seleccionar ejecución"}
@@ -494,20 +494,10 @@ export default function TestsViewersPage() {
             >
               Actualizar
             </Button>
-            <Link
-              href="/runs"
-              className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-100"
-            >
-              Abrir Página de Ejecuciones
-            </Link>
           </div>
           {noRuns && (
             <p className="text-sm text-slate-600">
-              Todavía no hay ejecuciones. Podés lanzar una desde{" "}
-              <Link href="/runs" className="underline">
-                Ejecuciones
-              </Link>
-              .
+              Todavía no hay ejecuciones en artefactos locales. Corré tests con `bun run test` desde el flujo IA.
             </p>
           )}
         </CardContent>

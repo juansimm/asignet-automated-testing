@@ -4,18 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 const pages = [
   {
     href: "/targets",
-    title: "URL Test Targets",
-    description: "Creá y administrá base URLs para ambientes y contextos de prueba.",
+    title: "URL Targets",
+    description: "Creá y administrá base URLs de referencia para QA y contexto de agentes.",
   },
   {
     href: "/ai",
     title: "IA",
-    description: "Ingerí logs sin depender de DBO y generá requests de agentes orientados a escenarios.",
+    description: "Ingerí logs sin depender de DBO y generá solicitudes de agentes orientadas a escenarios.",
   },
   {
     href: "/specs",
-    title: "Especificaciones",
-    description: "Visualizá especificaciones generadas y tests actuales para el flujo planner/generator/healer.",
+    title: "Configuraciones",
+    description: "Visualizá Configuraciones generadas y tests actuales para el flujo planner/generator/healer.",
   },
   {
     href: "/tests-viewers",
@@ -31,7 +31,7 @@ export default function Home() {
       <div>
         <h1 className="text-2xl font-semibold">QA Debug UI</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Espacio de trabajo para entornos, preparación de escenarios con IA y specs.
+          Espacio de trabajo para URL Targets, preparación de escenarios con IA y specs.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">

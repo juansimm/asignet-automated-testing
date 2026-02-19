@@ -4,15 +4,14 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "QA Debug UI",
-  description: "Entornos, entrada de escenarios IA y flujo de specs Playwright",
+  description: "URL Targets, entrada de escenarios IA y flujo de specs Playwright",
 };
 
 const navLinks = [
   { href: "/", label: "Inicio" },
-  { href: "/targets", label: "URL Test Targets" },
+  { href: "/targets", label: "URL Targets" },
   { href: "/ai", label: "IA" },
-  { href: "/runs", label: "Ejecuciones" },
-  { href: "/specs", label: "Especificaciones" },
+  { href: "/specs", label: "Configuraciones" },
   { href: "/tests-viewers", label: "Visor de Tests" },
 ];
 

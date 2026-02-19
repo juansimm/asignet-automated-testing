@@ -49,7 +49,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "No se pudo crear el entorno");
+        throw new Error(payload.error ?? "No se pudo crear el URL Target");
       }
 
       setName("");
@@ -81,7 +81,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "No se pudo actualizar el entorno");
+        throw new Error(payload.error ?? "No se pudo actualizar el URL Target");
       }
 
       setEditingId(null);
@@ -104,7 +104,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "No se pudo eliminar el entorno");
+        throw new Error(payload.error ?? "No se pudo eliminar el URL Target");
       }
 
       await loadTargets();
@@ -118,15 +118,15 @@ export default function TargetsPage() {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
-        <h1 className="text-2xl font-semibold tracking-tight">URL Test Targets</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">URL Targets</h1>
         <p className="text-sm text-slate-600">
-          Agregá y mantené base URLs de ambientes para contexto de IA/planificación.
+          Agregá y mantené base URLs para contexto de IA y generación de Configuraciones.
         </p>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Agregar Entorno</CardTitle>
+          <CardTitle>Agregar URL Target</CardTitle>
           <CardDescription>Usá nombres claros como `staging`, `qa`, `produccion-mirror`.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,7 +134,7 @@ export default function TargetsPage() {
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Nombre del entorno"
+              placeholder="Nombre del URL Target"
             />
             <Input
               value={baseUrl}
@@ -150,7 +150,7 @@ export default function TargetsPage() {
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Entornos Registrados</CardTitle>
+          <CardTitle>URL Targets Registrados</CardTitle>
         </CardHeader>
         <CardContent>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
@@ -231,7 +231,7 @@ export default function TargetsPage() {
           </Table>
           {targets.length === 0 && (
             <p className="mt-3 text-sm text-slate-600">
-              Aún no hay entornos. Agregá uno para mantener el contexto de ambientes ordenado.
+              Aún no hay URL Targets. Agregá uno para mantener el contexto de ejecución ordenado.
             </p>
           )}
         </CardContent>

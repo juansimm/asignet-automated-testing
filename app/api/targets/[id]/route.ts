@@ -48,7 +48,7 @@ export async function PUT(request: Request, context: RouteContext) {
     return NextResponse.json({ target });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return NextResponse.json({ error: "no se encontró el entorno" }, { status: 404 });
+      return NextResponse.json({ error: "no se encontró el URL Target" }, { status: 404 });
     }
 
     throw error;
@@ -62,7 +62,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     await prisma.target.delete({ where: { id } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return NextResponse.json({ error: "no se encontró el entorno" }, { status: 404 });
+      return NextResponse.json({ error: "no se encontró el URL Target" }, { status: 404 });
     }
 
     throw error;

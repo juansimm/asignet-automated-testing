@@ -82,7 +82,7 @@ export default async function SpecsPage() {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Especificaciones y Flujo de Agentes</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Configuraciones y Flujo de Agentes</h1>
         <p className="text-sm text-slate-600">
           Las specs generadas son archivos en disco. Planificador, generador y corrector se ejecutan desde
           tu loop de IDE con agentes, no desde esta web.
@@ -98,7 +98,7 @@ export default async function SpecsPage() {
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle>Cómo Ejecutar</CardTitle>
-          <CardDescription>Usá tu request generado y corré los tres agentes en orden.</CardDescription>
+          <CardDescription>Usá tu solicitud generada y corré los tres agentes en orden.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1 text-sm text-slate-700">
           <p>1. Entrada del planificador: archivo más nuevo en `specs/`</p>

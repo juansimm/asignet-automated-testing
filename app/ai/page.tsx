@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import type { TargetDto } from "@/lib/api-types";
 
 type WayfastEntry = {
   id: number;
@@ -96,6 +97,9 @@ function buildNoDboPrompt(goal: string, context: string, constraints: string, as
 }
 
 export default function AiPage() {
+  const [targets, setTargets] = useState<TargetDto[]>([]);
+  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [targetsLoading, setTargetsLoading] = useState(true);
   const [scenarioSpec, setScenarioSpec] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,7 +151,7 @@ export default function AiPage() {
       const response = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenarioSpec }),
+        body: JSON.stringify({ scenarioSpec, targetId: selectedTargetId }),
       });
 
       const payload = (await response.json()) as {
@@ -157,7 +161,7 @@ export default function AiPage() {
         error?: string;
       };
 
-      if (!response.ok) throw new Error(payload.error ?? "No se pudo generar el request del agente");
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo generar la solicitud del agente");
 
       const created = payload.specPath ?? payload.relativePath ?? null;
       const seed = payload.seedFile ? `\nSeed: ${payload.seedFile}` : "";
@@ -250,13 +254,39 @@ export default function AiPage() {
   const hasLogOutput = Boolean(logOutput.trim() || logEntries.length);
   const selectedCount = selectedLogIds.length;
   const allSelected = logEntries.length > 0 && selectedCount === logEntries.length;
+  const selectedTarget = targets.find((target) => target.id === selectedTargetId) ?? null;
+
+  useEffect(() => {
+    const loadTargets = async () => {
+      setTargetsLoading(true);
+
+      try {
+        const response = await fetch("/api/targets", { cache: "no-store" });
+        const payload = (await response.json()) as { targets?: TargetDto[]; error?: string };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "No se pudieron cargar los URL Targets");
+        }
+
+        const nextTargets = payload.targets ?? [];
+        setTargets(nextTargets);
+        setSelectedTargetId((current) => current || nextTargets[0]?.id || "");
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : String(requestError));
+      } finally {
+        setTargetsLoading(false);
+      }
+    };
+
+    void loadTargets();
+  }, []);
 
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
         <h1 className="text-2xl font-semibold tracking-tight">Constructor de Entrada para Tests IA</h1>
         <p className="mt-1 text-sm text-slate-600">
-          El flujo recomendado es redactar prompt sin DBO y luego generar un request de planner/generator/healer en `specs/`.
+          El flujo recomendado es redactar prompt sin DBO, seleccionar URL Target y luego generar la solicitud del flujo planificador/generador/corrector en `specs/`.
         </p>
       </div>
 
@@ -266,6 +296,25 @@ export default function AiPage() {
           <CardDescription>{modeHint}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="space-y-1 md:max-w-xl">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-600">URL Target</p>
+            <Select value={selectedTargetId} onChange={(event) => setSelectedTargetId(event.target.value)}>
+              <option value="" disabled>
+                {targetsLoading ? "Cargando URL Targets..." : "Seleccionar URL Target"}
+              </option>
+              {targets.map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.name} ({target.baseUrl})
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-slate-600">
+              {selectedTarget
+                ? `Se incluirá en el contexto del agente: ${selectedTarget.baseUrl}`
+                : "No hay URL Target seleccionado."}
+            </p>
+          </div>
+
           <div className="space-y-1 md:max-w-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Modo de Entrada</p>
             <Select
@@ -379,7 +428,9 @@ export default function AiPage() {
             onChange={(event) => setScenarioSpec(event.target.value)}
             placeholder="# Escenario\n- El usuario abre checkout\n- El usuario envía una tarjeta inválida\n- Debe verse un banner de error"
           />
-          <Button onClick={handleGenerate} disabled={loading || !scenarioSpec.trim()}>{loading ? "Generando..." : "Generar solicitud de agente"}</Button>
+          <Button onClick={handleGenerate} disabled={loading || !scenarioSpec.trim() || !selectedTargetId}>
+            {loading ? "Generando..." : "Generar solicitud de agente"}
+          </Button>
           {createdFile && <p className="whitespace-pre-line rounded-md bg-emerald-50 p-2 text-sm text-emerald-700">Creado: {createdFile}</p>}
           {error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         </CardContent>

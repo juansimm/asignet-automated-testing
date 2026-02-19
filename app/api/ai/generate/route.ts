@@ -2,12 +2,14 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 import { NextResponse } from "next/server";
 import { ensureDir, PLAYWRIGHT_TESTS_DIR, SPECS_DIR } from "@/lib/constants";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type GenerateSpecRequest = {
   scenarioSpec?: string;
+  targetId?: string;
 };
 
 function buildTimestamp() {
@@ -25,14 +27,25 @@ function buildTimestamp() {
   ].join("");
 }
 
-function buildAgentRequestTemplate(scenarioSpec: string, seedFile: string) {
+function buildAgentRequestTemplate(
+  scenarioSpec: string,
+  seedFile: string,
+  target: { name: string; baseUrl: string },
+) {
   const generatedAt = new Date().toISOString();
 
   return `# Solicitud de Agente Playwright
 
 - Generado en: ${generatedAt}
 - Archivo semilla: \`${seedFile}\`
+- URL Target: ${target.name} (\`${target.baseUrl}\`)
 - Agentes: planificador -> generador -> corrector
+
+## URL Target
+
+- Nombre: ${target.name}
+- Base URL: ${target.baseUrl}
+- Regla: usar esta Base URL como origen principal del flujo de prueba.
 
 ## Input del Escenario
 
@@ -74,9 +87,26 @@ export async function POST(request: Request) {
   }
 
   const scenarioSpec = body.scenarioSpec?.trim();
+  const targetId = body.targetId?.trim();
 
   if (!scenarioSpec) {
     return NextResponse.json({ error: "scenarioSpec es obligatorio" }, { status: 400 });
+  }
+
+  if (!targetId) {
+    return NextResponse.json({ error: "targetId es obligatorio" }, { status: 400 });
+  }
+
+  const target = await prisma.target.findUnique({
+    where: { id: targetId },
+    select: {
+      name: true,
+      baseUrl: true,
+    },
+  });
+
+  if (!target) {
+    return NextResponse.json({ error: "No se encontró el URL Target seleccionado" }, { status: 404 });
   }
 
   const filename = `request_${buildTimestamp()}.md`;
@@ -93,7 +123,11 @@ export async function POST(request: Request) {
     await fs.writeFile(seedAbsolutePath, buildSeedTemplate(), "utf8");
   }
 
-  await fs.writeFile(absolutePath, buildAgentRequestTemplate(scenarioSpec, seedRelativePath), "utf8");
+  await fs.writeFile(
+    absolutePath,
+    buildAgentRequestTemplate(scenarioSpec, seedRelativePath, target),
+    "utf8",
+  );
 
   return NextResponse.json(
     {
