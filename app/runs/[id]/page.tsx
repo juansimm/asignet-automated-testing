@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -39,7 +40,7 @@ function formatTimeoutLabel(runTimeoutMs: number) {
   }
 
   if (runTimeoutMs >= 1000) {
-    return `${(runTimeoutMs / 1000).toFixed(0)} sec`;
+    return `${(runTimeoutMs / 1000).toFixed(0)} seg`;
   }
 
   return `${runTimeoutMs} ms`;
@@ -86,7 +87,7 @@ export default function RunDetailsPage() {
 
   const combinedLogs = useMemo(() => {
     if (!stdout && !stderr) {
-      return "Waiting for logs...";
+      return "Esperando logs...";
     }
 
     const logChunks = [
@@ -102,7 +103,7 @@ export default function RunDetailsPage() {
     const payload = (await response.json()) as RunDetailsResponse;
 
     if (!response.ok) {
-      throw new Error(payload.error ?? "Failed to load run details");
+      throw new Error(payload.error ?? "No se pudo cargar el detalle de la ejecución");
     }
 
     setRuntimeConfig(payload.runtimeConfig ?? null);
@@ -117,7 +118,7 @@ export default function RunDetailsPage() {
     const payload = (await response.json()) as RunLogsResponse;
 
     if (!response.ok) {
-      throw new Error(payload.error ?? "Failed to load logs");
+      throw new Error(payload.error ?? "No se pudieron cargar los logs");
     }
 
     setStdout(payload.stdout ?? "");
@@ -173,7 +174,7 @@ export default function RunDetailsPage() {
       const payload = (await response.json()) as { run?: RunDto; error?: string };
 
       if (!response.ok || !payload.run) {
-        throw new Error(payload.error ?? "Failed to trigger re-run");
+        throw new Error(payload.error ?? "No se pudo relanzar la ejecución");
       }
 
       router.push(`/runs/${payload.run.id}`);
@@ -208,7 +209,7 @@ export default function RunDetailsPage() {
       const payload = (await response.json()) as { run?: RunDto; error?: string };
 
       if (!response.ok || !payload.run) {
-        throw new Error(payload.error ?? "Failed to trigger failed-only re-run");
+        throw new Error(payload.error ?? "No se pudo relanzar solo fallidos");
       }
 
       router.push(`/runs/${payload.run.id}`);
@@ -232,7 +233,7 @@ export default function RunDetailsPage() {
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to cancel run");
+        throw new Error(payload.error ?? "No se pudo cancelar la ejecución");
       }
 
       await loadDetails();
@@ -247,10 +248,16 @@ export default function RunDetailsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Run {runId}</h1>
-          <p className="text-sm text-slate-600">Live logs and report details for this execution.</p>
+          <h1 className="text-2xl font-semibold">Ejecución {runId}</h1>
+          <p className="text-sm text-slate-600">Logs en vivo y detalle de reporte de esta ejecución.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href={`/tests-viewers?runId=${runId}`}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100"
+          >
+            Abrir en Visor de Tests
+          </Link>
           <Button
             variant="secondary"
             onClick={() => {
@@ -259,21 +266,21 @@ export default function RunDetailsPage() {
               });
             }}
           >
-            Refresh
+            Actualizar
           </Button>
           <Button onClick={handleRerun} disabled={!run || loadingAction}>
-            Re-run
+            Re-ejecutar
           </Button>
           <Button
             variant="secondary"
             onClick={handleRerunFailedOnly}
             disabled={!run || loadingAction || isRunning || failingTests.length === 0}
           >
-            Re-run Failed Only
+            Re-ejecutar Solo Fallidos
           </Button>
           {isRunning && (
             <Button variant="destructive" onClick={handleCancel} disabled={loadingAction}>
-              Cancel
+              Cancelar
             </Button>
           )}
         </div>
@@ -284,17 +291,17 @@ export default function RunDetailsPage() {
       {runtimeConfig && (
         <Card>
           <CardHeader>
-            <CardTitle>Runtime Config</CardTitle>
+            <CardTitle>Configuración de Runtime</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Run Timeout</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Timeout de Ejecución</p>
               <p className="mt-1 text-sm font-semibold">
                 {formatTimeoutLabel(runtimeConfig.runTimeoutMs)} ({runtimeConfig.runTimeoutMs} ms)
               </p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Retries</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Reintentos</p>
               <p className="mt-1 text-sm font-semibold">{runtimeConfig.retries}</p>
             </div>
           </CardContent>
@@ -303,15 +310,15 @@ export default function RunDetailsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Run Summary</CardTitle>
+          <CardTitle>Resumen de Ejecución</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-6">
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Estado</p>
             <div className="mt-2">{run ? <StatusBadge status={run.status} /> : "-"}</div>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Target</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Entorno</p>
             <p className="mt-2 text-sm">{run?.target?.name ?? "-"}</p>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
@@ -319,17 +326,17 @@ export default function RunDetailsPage() {
             <p className="mt-2 text-sm font-semibold">{summary.total}</p>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Passed</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Aprobados</p>
             <p className="mt-2 text-sm font-semibold">{summary.passed}</p>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Failed / Flaky</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Fallidos / Inestables</p>
             <p className="mt-2 text-sm font-semibold">
               {summary.failed} / {summary.flaky}
             </p>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Duration</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Duración</p>
             <p className="mt-2 text-sm font-semibold">{formatDuration(summary.durationMs)}</p>
           </div>
         </CardContent>
@@ -337,7 +344,7 @@ export default function RunDetailsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Artifacts</CardTitle>
+          <CardTitle>Artefactos</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {run?.htmlReportUrl ? (
@@ -347,10 +354,10 @@ export default function RunDetailsPage() {
               rel="noreferrer"
               className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
             >
-              Open HTML Report
+              Abrir Reporte HTML
             </Link>
           ) : (
-            <p className="text-sm text-slate-600">No HTML report path yet.</p>
+            <p className="text-sm text-slate-600">Todavía no hay ruta de reporte HTML.</p>
           )}
           {run?.reportJsonUrl && (
             <Link
@@ -359,7 +366,7 @@ export default function RunDetailsPage() {
               rel="noreferrer"
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100"
             >
-              Open JSON Report
+              Abrir Reporte JSON
             </Link>
           )}
         </CardContent>
@@ -367,17 +374,17 @@ export default function RunDetailsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Failing Tests</CardTitle>
+          <CardTitle>Tests Fallidos</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
+                <TableHead>Título</TableHead>
                 <TableHead>Error</TableHead>
-                <TableHead>HTML Report</TableHead>
+                <TableHead>Reporte HTML</TableHead>
                 <TableHead>Trace</TableHead>
-                <TableHead>Screenshot</TableHead>
+                <TableHead>Captura</TableHead>
                 <TableHead>Video</TableHead>
               </TableRow>
             </TableHeader>
@@ -396,7 +403,7 @@ export default function RunDetailsPage() {
                         rel="noreferrer"
                         className="text-sm text-slate-900 underline"
                       >
-                        Open
+                        Abrir
                       </Link>
                     ) : (
                       "-"
@@ -418,14 +425,26 @@ export default function RunDetailsPage() {
                   </TableCell>
                   <TableCell>
                     {testCase.screenshotUrl ? (
-                      <Link
-                        href={testCase.screenshotUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-slate-900 underline"
-                      >
-                        Screenshot
-                      </Link>
+                      <div className="space-y-1">
+                        <Link href={testCase.screenshotUrl} target="_blank" rel="noreferrer">
+                          <Image
+                            src={testCase.screenshotUrl}
+                            alt={`${testCase.title} screenshot`}
+                            width={320}
+                            height={180}
+                            unoptimized
+                            className="h-auto max-h-24 w-40 rounded-md border border-slate-200 object-contain"
+                          />
+                        </Link>
+                        <Link
+                          href={testCase.screenshotUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-slate-900 underline"
+                        >
+                          Abrir
+                        </Link>
+                      </div>
                     ) : (
                       "-"
                     )}
@@ -450,14 +469,14 @@ export default function RunDetailsPage() {
           </Table>
 
           {failingTests.length === 0 && (
-            <p className="mt-3 text-sm text-slate-600">No failing tests parsed yet.</p>
+            <p className="mt-3 text-sm text-slate-600">Todavía no hay tests fallidos parseados.</p>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Flaky Tests</CardTitle>
+          <CardTitle>Tests Inestables</CardTitle>
         </CardHeader>
         <CardContent>
           {flakyTests.length > 0 ? (
@@ -469,14 +488,14 @@ export default function RunDetailsPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-600">No flaky tests detected in this run.</p>
+            <p className="text-sm text-slate-600">No se detectaron tests inestables en esta ejecución.</p>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Live Logs</CardTitle>
+          <CardTitle>Logs en Vivo</CardTitle>
         </CardHeader>
         <CardContent>
           <pre className="max-h-[26rem] overflow-auto rounded-md bg-slate-900 p-4 text-xs text-slate-100">

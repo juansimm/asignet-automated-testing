@@ -32,13 +32,13 @@ export async function POST(request: Request) {
 
   if (!name || !baseUrl) {
     return NextResponse.json(
-      { error: "name and baseUrl are required" },
+      { error: "name y baseUrl son obligatorios" },
       { status: 400 },
     );
   }
 
   if (!isValidUrl(baseUrl)) {
-    return NextResponse.json({ error: "baseUrl must be a valid URL" }, { status: 400 });
+    return NextResponse.json({ error: "baseUrl debe ser una URL válida" }, { status: 400 });
   }
 
   const target = await prisma.target.create({

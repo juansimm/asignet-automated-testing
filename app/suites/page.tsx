@@ -18,7 +18,7 @@ export default function SuitesPage() {
       const payload = (await response.json()) as { suites?: string[]; error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load suites");
+        throw new Error(payload.error ?? "No se pudieron cargar las suites");
       }
 
       setSuites(payload.suites ?? []);
@@ -40,17 +40,17 @@ export default function SuitesPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold">Suites</h1>
-        <p className="text-sm text-slate-600">Discovered from `playwright/tests`.</p>
+        <p className="text-sm text-slate-600">Descubiertas desde `playwright/tests`.</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Available Suites</CardTitle>
-          <CardDescription>Refresh after adding files under `playwright/tests`.</CardDescription>
+          <CardTitle>Suites Disponibles</CardTitle>
+          <CardDescription>Actualizá luego de agregar archivos en `playwright/tests`.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="secondary" onClick={loadSuites} disabled={loading}>
-            Refresh
+            Actualizar
           </Button>
 
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
@@ -64,7 +64,7 @@ export default function SuitesPage() {
           </ul>
 
           {!loading && suites.length === 0 && (
-            <p className="mt-3 text-sm text-slate-600">No suites found yet.</p>
+            <p className="mt-3 text-sm text-slate-600">Aún no se encontraron suites.</p>
           )}
         </CardContent>
       </Card>

@@ -131,16 +131,16 @@ export function buildScenarioFromWayfastEntries(entries: WayfastEntry[]) {
   }
 
   const lines = [
-    "# Scenario Context (Wayfast Logs)",
+    "# Contexto del Escenario (Logs Wayfast)",
     "",
-    `- Source: LogRequestList`,
-    `- Entries: ${entries.length}`,
+    `- Fuente: LogRequestList`,
+    `- Entradas: ${entries.length}`,
     "",
-    "## Observed Flow",
+    "## Flujo Observado",
   ];
 
   for (const [index, entry] of entries.entries()) {
-    const titleBits = [entry.eventType || "Event", entry.key || "operation"].filter(Boolean).join(" - ");
+    const titleBits = [entry.eventType || "Evento", entry.key || "operación"].filter(Boolean).join(" - ");
     const locationBits = [entry.projectName, entry.pageName].filter(Boolean).join(" / ");
     const metadata = [
       entry.date ? `date=${entry.date}` : "",
@@ -151,24 +151,24 @@ export function buildScenarioFromWayfastEntries(entries: WayfastEntry[]) {
       .filter(Boolean)
       .join(", ");
 
-    lines.push(`### ${index + 1}. ${titleBits || "Observed action"}`);
+    lines.push(`### ${index + 1}. ${titleBits || "Acción observada"}`);
     if (metadata) {
       lines.push(`- Meta: ${metadata}`);
     }
     if (entry.value) {
-      lines.push(`- Signal: ${compactValue(entry.value)}`);
+      lines.push(`- Señal: ${compactValue(entry.value)}`);
     }
     if (entry.parameters) {
-      lines.push(`- Parameters: ${compactValue(entry.parameters)}`);
+      lines.push(`- Parámetros: ${compactValue(entry.parameters)}`);
     }
-    lines.push(`- Expected: Verify this step completes without backend errors and UI reflects the operation result.`);
+    lines.push("- Esperado: Verificar que el paso complete sin errores backend y que la UI refleje el resultado.");
     lines.push("");
   }
 
-  lines.push("## Notes For Agent");
-  lines.push("- Convert each observed action into user-facing browser steps where possible.");
-  lines.push("- Add assertions after each critical step.");
-  lines.push("- If a log entry is backend-only, validate via visible UI outcome.");
+  lines.push("## Notas para el Agente");
+  lines.push("- Convertir cada acción observada en pasos de navegador visibles para el usuario cuando sea posible.");
+  lines.push("- Agregar assertions después de cada paso crítico.");
+  lines.push("- Si una entrada de log es solo backend, validar mediante resultado visible en UI.");
 
   return lines.join("\n").trim();
 }

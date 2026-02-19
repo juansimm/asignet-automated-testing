@@ -1,6 +1,6 @@
-# QA Debug UI (Next.js + Playwright)
+# QA Debug UI (Targets + AI + Specs)
 
-A local MVP for running Playwright suites against multiple targets, streaming live logs, and opening debugging artifacts.
+Focused workspace for target management, AI scenario input, and Playwright agent requests.
 
 ## Stack
 
@@ -44,24 +44,19 @@ bun run dev
 
 ## Usage
 
-1. Open `/targets` and add a target (name + base URL).
-2. Add suites under `playwright/tests` (a `smoke.spec.ts` is included).
-3. Open `/runs`, pick a target + suite, trigger a run.
-4. Open run details at `/runs/[id]` to watch logs and inspect failing tests.
-5. Use **Re-run Failed Only** to execute only previously failing cases.
-6. Open HTML report and per-test attachments (trace/screenshot/video) from run detail.
-
-## Runtime Controls
-
-- Single-run concurrency guard: only one run can be `RUNNING` at a time.
-- Global timeout: set `RUN_TIMEOUT_MS` (default `900000`, i.e. 15 minutes).
-- Playwright retries: set `RETRIES` in env (default `0`).
+1. Open `/targets` and manage base URLs.
+2. Open `/ai` and keep `Prompt only (No DBO, recommended)` mode.
+3. Fill prompt fields (objective, context, constraints, required assertions).
+4. Click **Append no-DBO prompt to scenario**.
+5. Click **Generate agent request** (creates `specs/request_<timestamp>.md`).
+6. Open `/specs` to review generated request and current `playwright/tests/*.spec.ts`.
+7. Use `/specs` cleaner controls to preview/delete generated files when done.
 
 ## AI + Playwright Test Agents
 
 - Open `/ai`.
-- Fetch Wayfast logs and select the rows you want to include.
-- Click **Append selected to scenario** to build structured scenario context.
+- Build scenario instructions in **Prompt only (No DBO)** mode.
+- Click **Append no-DBO prompt to scenario**.
 - Click **Generate agent request** to create `specs/request_<timestamp>.md`.
 
 The app also ensures `playwright/tests/seed.spec.ts` exists so the request is directly usable by the Playwright agents workflow.
@@ -76,6 +71,8 @@ bun run agents:init:vscode
 bun run agents:init:claude
 # or
 bun run agents:init:copilot
+# or (Cursor/OpenCode style loop)
+bun run agents:init:opencode
 ```
 
 This creates:
@@ -84,8 +81,19 @@ This creates:
 - `.github/agents/playwright-test-generator.agent.md`
 - `.github/agents/playwright-test-healer.agent.md`
 - `.github/prompts/*` prompt templates
+- `.opencode/prompts/*` and `opencode.json` (when using `agents:init:opencode`)
 - `specs/` plan directory
 - `.vscode/mcp.json` MCP wiring
+
+### Keep Definitions In Sync
+
+When Playwright is updated, regenerate agent definitions so prompts/tools stay aligned with Playwright conventions:
+
+```bash
+bun run agents:init:vscode
+# or your selected loop, e.g.
+bun run agents:init:opencode
+```
 
 ### Agent execution order
 
@@ -93,39 +101,15 @@ This creates:
 2. Run generator to create executable tests in `playwright/tests/`.
 3. Run healer to debug and fix failing tests until green.
 
-## Wayfast Logs (optional)
+## Asignet API Mode (optional)
 
-Configure these environment variables to pull Wayfast log request data in `/ai`:
+Only needed if you choose `Asignet API` mode in `/ai`:
 
 - `ASIGNET_BASE_URL` (defaults to `https://dbo.asignet.com/asignetrestapi`)
 - `ASIGNET_USERNAME`
 - `ASIGNET_PASSWORD`
 
-Then use the **Wayfast Logs** card to fetch logs by email/date range, select rows, and append them as a structured scenario draft.
-
-## Artifacts
-
-All run output is stored under:
-
-```text
-artifacts/<runId>/
-```
-
-Expected files include:
-
-- `stdout.log`
-- `stderr.log`
-- `report.json`
-- `html-report/index.html`
-- `test-results/*` (trace/screenshot/video attachments)
-
-Artifacts are served in dev mode via:
-
-```text
-/artifacts/<runId>/...
-```
-
-with path traversal checks in the route handler.
+If you do not have access to `dbo.asignet.com`, use `Manual JSON` or `Public URL JSON` instead.
 
 ## Scripts
 
@@ -134,7 +118,10 @@ with path traversal checks in the route handler.
 - `bun run agents:init:vscode` - Initialize Playwright test agents for VS Code loop
 - `bun run agents:init:claude` - Initialize Playwright test agents for Claude loop
 - `bun run agents:init:copilot` - Initialize Playwright test agents for GitHub Copilot loop
+- `bun run agents:init:opencode` - Initialize Playwright test agents for OpenCode/Cursor-style loop
 - `bun run agents:mcp` - Start Playwright test MCP server
+- `bun run clean:generated` - Preview generated files to clean (dry run)
+- `bun run clean:generated:yes` - Delete generated request markdown + generated agent tests
 - `bun run seed` - Seed database
 - `bun run prisma:migrate` - Apply/create local Prisma migration
 - `bun run prisma:generate` - Generate Prisma client

@@ -49,7 +49,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to create target");
+        throw new Error(payload.error ?? "No se pudo crear el URL Target");
       }
 
       setName("");
@@ -81,7 +81,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to update target");
+        throw new Error(payload.error ?? "No se pudo actualizar el URL Target");
       }
 
       setEditingId(null);
@@ -104,7 +104,7 @@ export default function TargetsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to delete target");
+        throw new Error(payload.error ?? "No se pudo eliminar el URL Target");
       }
 
       await loadTargets();
@@ -116,23 +116,25 @@ export default function TargetsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Targets</h1>
-        <p className="text-sm text-slate-600">Add and maintain execution targets.</p>
+    <div className="space-y-5">
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-100 p-5">
+        <h1 className="text-2xl font-semibold tracking-tight">URL Targets</h1>
+        <p className="text-sm text-slate-600">
+          Agregá y mantené base URLs para contexto de IA y generación de Configuraciones.
+        </p>
       </div>
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Add Target</CardTitle>
-          <CardDescription>Each target maps to a `BASE_URL` used by Playwright runs.</CardDescription>
+          <CardTitle>Agregar URL Target</CardTitle>
+          <CardDescription>Usá nombres claros como `staging`, `qa`, `produccion-mirror`.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-[1fr_2fr_auto]">
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Target name"
+              placeholder="Nombre del URL Target"
             />
             <Input
               value={baseUrl}
@@ -140,25 +142,25 @@ export default function TargetsPage() {
               placeholder="https://example.com"
             />
             <Button onClick={handleCreate} disabled={loading || !name || !baseUrl}>
-              Create
+              Crear
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Registered Targets</CardTitle>
+          <CardTitle>URL Targets Registrados</CardTitle>
         </CardHeader>
         <CardContent>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Nombre</TableHead>
                 <TableHead>Base URL</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Creado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -184,7 +186,7 @@ export default function TargetsPage() {
                         <span className="font-mono text-xs">{target.baseUrl}</span>
                       )}
                     </TableCell>
-                    <TableCell>{new Date(target.createdAt).toLocaleString()}</TableCell>
+                    <TableCell>{new Date(target.createdAt).toLocaleString("es-AR")}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         {isEditing ? (
@@ -194,7 +196,7 @@ export default function TargetsPage() {
                               onClick={() => handleSave(target.id)}
                               disabled={loading || !editName || !editBaseUrl}
                             >
-                              Save
+                              Guardar
                             </Button>
                             <Button
                               size="sm"
@@ -202,13 +204,13 @@ export default function TargetsPage() {
                               onClick={() => setEditingId(null)}
                               disabled={loading}
                             >
-                              Cancel
+                              Cancelar
                             </Button>
                           </>
                         ) : (
                           <>
                             <Button size="sm" variant="secondary" onClick={() => startEdit(target)}>
-                              Edit
+                              Editar
                             </Button>
                             <Button
                               size="sm"
@@ -216,7 +218,7 @@ export default function TargetsPage() {
                               onClick={() => handleDelete(target.id)}
                               disabled={loading}
                             >
-                              Delete
+                              Eliminar
                             </Button>
                           </>
                         )}
@@ -228,7 +230,9 @@ export default function TargetsPage() {
             </TableBody>
           </Table>
           {targets.length === 0 && (
-            <p className="mt-3 text-sm text-slate-600">No targets yet. Create one to run suites.</p>
+            <p className="mt-3 text-sm text-slate-600">
+              Aún no hay URL Targets. Agregá uno para mantener el contexto de ejecución ordenado.
+            </p>
           )}
         </CardContent>
       </Card>

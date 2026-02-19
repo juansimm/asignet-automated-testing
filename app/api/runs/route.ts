@@ -1,6 +1,6 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { RunStatus } from "@prisma/client";
+import { Prisma, RunStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseReportFile } from "@/lib/report-parser";
 import {
@@ -49,13 +49,13 @@ async function resolveFailedOnlyPattern(sourceRunId: string) {
   });
 
   if (!sourceRun) {
-    return { error: "source run not found" } as const;
+    return { error: "no se encontró la corrida de origen" } as const;
   }
 
   const reportPath = fromStoredPath(sourceRun.reportJsonPath);
 
   if (!reportPath) {
-    return { error: "source run does not have a JSON report" } as const;
+    return { error: "la corrida de origen no tiene reporte JSON" } as const;
   }
 
   const parsed = await parseReportFile(reportPath);
@@ -66,7 +66,7 @@ async function resolveFailedOnlyPattern(sourceRunId: string) {
   const grepPattern = buildFailedOnlyGrepPattern(failedTitles);
 
   if (!grepPattern) {
-    return { error: "source run has no failed tests to re-run" } as const;
+    return { error: "la corrida de origen no tiene tests fallidos para reintentar" } as const;
   }
 
   return {
@@ -76,28 +76,42 @@ async function resolveFailedOnlyPattern(sourceRunId: string) {
 }
 
 export async function GET() {
-  const runs = await prisma.run.findMany({
-    include: {
-      target: true,
-    },
-    orderBy: {
-      startedAt: "desc",
-    },
-    take: 200,
-  });
+  try {
+    const runs = await prisma.run.findMany({
+      include: {
+        target: true,
+      },
+      orderBy: {
+        startedAt: "desc",
+      },
+      take: 200,
+    });
 
-  return NextResponse.json({
-    runtimeConfig: {
-      runTimeoutMs: RunService.getTimeoutMsFromEnv(),
-      retries: getRetriesFromEnv(),
-    },
-    runs: runs.map((run) => ({
-      ...run,
-      htmlReportUrl: toArtifactsUrl(run.htmlReportPath),
-      stdoutUrl: toArtifactsUrl(run.stdoutPath),
-      stderrUrl: toArtifactsUrl(run.stderrPath),
-    })),
-  });
+    return NextResponse.json({
+      runtimeConfig: {
+        runTimeoutMs: RunService.getTimeoutMsFromEnv(),
+        retries: getRetriesFromEnv(),
+      },
+      runs: runs.map((run) => ({
+        ...run,
+        htmlReportUrl: toArtifactsUrl(run.htmlReportPath),
+        stdoutUrl: toArtifactsUrl(run.stdoutPath),
+        stderrUrl: toArtifactsUrl(run.stderrPath),
+      })),
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+      return NextResponse.json(
+        {
+          error:
+            "El esquema de base de datos no está inicializado. Ejecutá `bun run prisma:migrate` y `bun run seed`.",
+        },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json({ error: "No se pudieron cargar las ejecuciones" }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -132,19 +146,19 @@ export async function POST(request: Request) {
 
   if (!targetId || !suiteName) {
     return NextResponse.json(
-      { error: "targetId and suiteName are required" },
+      { error: "targetId y suiteName son obligatorios" },
       { status: 400 },
     );
   }
 
   if (!(await suiteExists(suiteName))) {
-    return NextResponse.json({ error: "suiteName was not found" }, { status: 400 });
+    return NextResponse.json({ error: "no se encontró la suite solicitada" }, { status: 400 });
   }
 
   const target = await prisma.target.findUnique({ where: { id: targetId } });
 
   if (!target) {
-    return NextResponse.json({ error: "target not found" }, { status: 404 });
+    return NextResponse.json({ error: "no se encontró el entorno" }, { status: 404 });
   }
 
   await runService.reconcileStaleRunningRuns();
@@ -153,7 +167,7 @@ export async function POST(request: Request) {
 
   if (runService.hasActiveRuns() || runningCount > 0) {
     return NextResponse.json(
-      { error: "another run is currently running; wait for it to finish" },
+      { error: "ya hay una corrida en ejecución; esperá a que finalice" },
       { status: 409 },
     );
   }
@@ -207,7 +221,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
-    return NextResponse.json({ error: "failed to start run process" }, { status: 500 });
+    return NextResponse.json({ error: "no se pudo iniciar el proceso de ejecución" }, { status: 500 });
   }
 
   return NextResponse.json(

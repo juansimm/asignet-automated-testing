@@ -30,13 +30,13 @@ export async function PUT(request: Request, context: RouteContext) {
 
   if (!name || !baseUrl) {
     return NextResponse.json(
-      { error: "name and baseUrl are required" },
+      { error: "name y baseUrl son obligatorios" },
       { status: 400 },
     );
   }
 
   if (!isValidUrl(baseUrl)) {
-    return NextResponse.json({ error: "baseUrl must be a valid URL" }, { status: 400 });
+    return NextResponse.json({ error: "baseUrl debe ser una URL válida" }, { status: 400 });
   }
 
   try {
@@ -48,7 +48,7 @@ export async function PUT(request: Request, context: RouteContext) {
     return NextResponse.json({ target });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return NextResponse.json({ error: "target not found" }, { status: 404 });
+      return NextResponse.json({ error: "no se encontró el URL Target" }, { status: 404 });
     }
 
     throw error;
@@ -62,7 +62,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     await prisma.target.delete({ where: { id } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return NextResponse.json({ error: "target not found" }, { status: 404 });
+      return NextResponse.json({ error: "no se encontró el URL Target" }, { status: 404 });
     }
 
     throw error;
