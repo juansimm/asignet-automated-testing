@@ -1,7 +1,7 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { NextResponse } from "next/server";
-import { ensureDir, PLAYWRIGHT_TESTS_DIR } from "@/lib/constants";
+import { ensureDir, PLAYWRIGHT_TESTS_DIR, SPECS_DIR } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,48 +25,81 @@ function buildTimestamp() {
   ].join("");
 }
 
-function buildTemplate(scenarioSpec: string) {
-  const escaped = scenarioSpec.replaceAll("`", "\\`");
+function buildAgentRequestTemplate(scenarioSpec: string, seedFile: string) {
+  const generatedAt = new Date().toISOString();
 
-  return `import { test, expect } from "@playwright/test";
+  return `# Playwright Agent Request
 
-// TODO(agent): replace this scaffold with agent-generated test steps.
-const scenarioSpec = \`${escaped}\`;
+- Generated at: ${generatedAt}
+- Seed file: \`${seedFile}\`
+- Agents: planner -> generator -> healer
 
-test.describe("Generated Scenario", () => {
-  test("execute generated scenario", async ({ page }) => {
-    // TODO(agent): parse scenarioSpec and map it to actionable browser steps.
+## Scenario Input
+
+${scenarioSpec}
+
+## Required Output
+
+1. Planner: create a comprehensive test plan markdown file under \`specs/\`.
+2. Generator: produce executable Playwright tests under \`playwright/tests/\`.
+3. Healer: run tests, debug failures, and fix flaky/broken tests until green.
+
+## Constraints
+
+- Use explicit assertions for every critical user step.
+- Keep test names behavior-focused and deterministic.
+- Prefer stable locators (role, label, test id) over brittle CSS selectors.
+`;
+}
+
+function buildSeedTemplate() {
+  return `import { test } from "@playwright/test";
+
+test.describe("Seed Setup", () => {
+  test("seed", async ({ page }) => {
+    // Keep this file as a stable setup reference for planner/generator.
+    // Add reusable setup steps for your app (auth, tenant selection, etc.).
     await page.goto("/");
-
-    // Keep one assertion so this generated suite is runnable immediately.
-    await expect(page).toHaveURL(/.*/);
-
-    // TODO(agent): use scenarioSpec to drive selectors and assertions.
-    console.log("Scenario input length:", scenarioSpec.length);
   });
 });
 `;
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as GenerateSpecRequest;
+  let body: GenerateSpecRequest;
+  try {
+    body = (await request.json()) as GenerateSpecRequest;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
   const scenarioSpec = body.scenarioSpec?.trim();
 
   if (!scenarioSpec) {
     return NextResponse.json({ error: "scenarioSpec is required" }, { status: 400 });
   }
 
-  const filename = `generated_${buildTimestamp()}.spec.ts`;
-  const absolutePath = path.join(PLAYWRIGHT_TESTS_DIR, filename);
+  const filename = `request_${buildTimestamp()}.md`;
+  const absolutePath = path.join(SPECS_DIR, filename);
+  const seedAbsolutePath = path.join(PLAYWRIGHT_TESTS_DIR, "seed.spec.ts");
+  const seedRelativePath = "playwright/tests/seed.spec.ts";
 
+  await ensureDir(SPECS_DIR);
   await ensureDir(PLAYWRIGHT_TESTS_DIR);
-  await fs.writeFile(absolutePath, buildTemplate(scenarioSpec), "utf8");
+
+  try {
+    await fs.access(seedAbsolutePath);
+  } catch {
+    await fs.writeFile(seedAbsolutePath, buildSeedTemplate(), "utf8");
+  }
+
+  await fs.writeFile(absolutePath, buildAgentRequestTemplate(scenarioSpec, seedRelativePath), "utf8");
 
   return NextResponse.json(
     {
       fileName: filename,
-      suiteName: filename,
-      relativePath: `playwright/tests/${filename}`,
+      specPath: `specs/${filename}`,
+      seedFile: seedRelativePath,
     },
     { status: 201 },
   );

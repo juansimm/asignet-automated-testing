@@ -5,6 +5,7 @@ export const ROOT_DIR = process.cwd();
 export const ARTIFACTS_DIR = path.join(ROOT_DIR, "artifacts");
 export const PLAYWRIGHT_DIR = path.join(ROOT_DIR, "playwright");
 export const PLAYWRIGHT_TESTS_DIR = path.join(PLAYWRIGHT_DIR, "tests");
+export const SPECS_DIR = path.join(ROOT_DIR, "specs");
 
 export async function ensureDir(dirPath: string) {
   await fs.mkdir(dirPath, { recursive: true });
