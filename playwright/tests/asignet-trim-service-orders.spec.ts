@@ -41,6 +41,13 @@ const LOGIN_SUBMIT_FACTORIES: LocatorFactory[] = [
     ),
 ];
 
+const SSO_ENTER_FACTORIES: LocatorFactory[] = [
+  (ctx) => ctx.getByRole("button", { name: /^\s*enter\s*$/i }),
+  (ctx) => ctx.getByRole("link", { name: /^\s*enter\s*$/i }),
+  (ctx) => ctx.locator("input[type='button'][value='Enter'], input[type='submit'][value='Enter']"),
+  (ctx) => ctx.locator("button:has-text('Enter'), a:has-text('Enter')"),
+];
+
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -137,6 +144,52 @@ async function tryClickFirstVisible(
   }
 }
 
+async function getActivePage(page: Page): Promise<Page> {
+  if (!page.isClosed()) {
+    return page;
+  }
+
+  const openPages = page
+    .context()
+    .pages()
+    .filter((candidate) => !candidate.isClosed());
+  if (openPages.length === 0) {
+    throw new Error("No open browser page available in context.");
+  }
+
+  return openPages[openPages.length - 1] as Page;
+}
+
+async function waitForUrlInAnyPage(page: Page, urlRe: RegExp, timeoutMs: number): Promise<Page> {
+  let active = await getActivePage(page);
+  const context = active.context();
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const openPages = context.pages().filter((candidate) => !candidate.isClosed());
+    const alreadyMatching = openPages.find((candidate) => urlRe.test(candidate.url()));
+    if (alreadyMatching) {
+      return alreadyMatching;
+    }
+
+    active = await getActivePage(active);
+    const remaining = Math.max(250, Math.min(3_000, deadline - Date.now()));
+
+    try {
+      await active.waitForURL(urlRe, { timeout: remaining });
+      return active;
+    } catch {
+      const popup = await context.waitForEvent("page", { timeout: remaining }).catch(() => null);
+      if (popup) {
+        await popup.waitForLoadState("domcontentloaded").catch(() => undefined);
+        active = popup;
+      }
+    }
+  }
+
+  throw new Error(`URL ${urlRe} was not reached in any open page within ${timeoutMs}ms.`);
+}
+
 async function clickTrimNavbar(page: Page, menuNameRe: RegExp) {
   await clickFirstVisible(page, `TRIM menu (${menuNameRe})`, [
     (ctx) => ctx.getByRole("link", { name: menuNameRe }),
@@ -159,7 +212,7 @@ async function performIdeLogin(page: Page, username: string, password: string) {
   await page.waitForLoadState("domcontentloaded");
 }
 
-async function ensureIdeAuthenticated(page: Page, username: string, password: string) {
+async function ensureIdeAuthenticated(page: Page, username: string, password: string): Promise<Page> {
   await page.goto(IDE_SSO_URL, { waitUntil: "domcontentloaded" });
 
   const isOnLoginPath = /\/login(?:[/?#]|$)/i.test(page.url());
@@ -178,6 +231,23 @@ async function ensureIdeAuthenticated(page: Page, username: string, password: st
   if (!/sso\.ashx/i.test(page.url()) && !TRIM_SHELL_URL_RE.test(page.url())) {
     await page.goto(IDE_SSO_URL, { waitUntil: "domcontentloaded" });
   }
+
+  return getActivePage(page);
+}
+
+async function proceedFromSsoApplications(page: Page): Promise<Page> {
+  if (!/\/sso\.ashx(?:[/?#]|$)/i.test(page.url())) {
+    return getActivePage(page);
+  }
+
+  const clickedEnter = await tryClickFirstVisible(page, "SSO Enter button", SSO_ENTER_FACTORIES, 4_000);
+  if (!clickedEnter) {
+    await page.keyboard.press("Enter").catch(() => undefined);
+  }
+
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForURL(IDE_AUTH_OR_PORTAL_URL_RE, { timeout: 20_000 }).catch(() => undefined);
+  return getActivePage(page);
 }
 
 async function isTrimHomeLoaded(page: Page): Promise<boolean> {
@@ -325,6 +395,7 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
   test("create a Service Order and verify it in Order Status", async ({ page }) => {
     test.setTimeout(8 * 60_000);
 
+    let activePage = page;
     const username = IDE_ASIGNET_USERNAME ?? "";
     const password = IDE_ASIGNET_PASSWORD ?? "";
 
@@ -334,23 +405,25 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
     let profileName: string | null = null;
 
     await test.step("Authenticate into Asignet IDE (SSO-first)", async () => {
-      await ensureIdeAuthenticated(page, username, password);
-      await expect(page).toHaveURL(IDE_AUTH_OR_PORTAL_URL_RE, { timeout: 90_000 });
+      activePage = await ensureIdeAuthenticated(activePage, username, password);
+      await expect(activePage).toHaveURL(IDE_AUTH_OR_PORTAL_URL_RE, { timeout: 90_000 });
     });
 
     await test.step("Open TRIM project", async () => {
-      if (await isTrimHomeLoaded(page)) {
-        profileName = await detectTopRightProfileName(page);
+      activePage = await proceedFromSsoApplications(activePage);
+
+      if (await isTrimHomeLoaded(activePage)) {
+        profileName = await detectTopRightProfileName(activePage);
         return;
       }
 
-      if (!TRIM_SHELL_URL_RE.test(page.url())) {
+      if (!TRIM_SHELL_URL_RE.test(activePage.url())) {
         // Some portal sessions auto-redirect to the selected project without a card click.
-        await page.waitForURL(TRIM_SHELL_URL_RE, { timeout: 10_000 }).catch(() => undefined);
+        activePage = await waitForUrlInAnyPage(activePage, TRIM_SHELL_URL_RE, 10_000).catch(() => activePage);
       }
 
-      if (!(await isTrimHomeLoaded(page)) && !TRIM_SHELL_URL_RE.test(page.url())) {
-        const clickedTrimCard = await tryClickFirstVisible(page, "TRIM card", [
+      if (!(await isTrimHomeLoaded(activePage)) && !TRIM_SHELL_URL_RE.test(activePage.url())) {
+        const clickedTrimCard = await tryClickFirstVisible(activePage, "TRIM card", [
           (ctx) => ctx.getByRole("link", { name: /trim/i }),
           (ctx) => ctx.getByRole("button", { name: /trim/i }),
           (ctx) => ctx.locator("[title*='trim' i], [aria-label*='trim' i]"),
@@ -359,17 +432,17 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
         ]);
 
         if (!clickedTrimCard) {
-          const clickedProjectLink = await tryClickFirstVisible(page, "project link to page.ashx", [
+          const clickedProjectLink = await tryClickFirstVisible(activePage, "project link to page.ashx", [
             (ctx) => ctx.locator("a[href*='page.ashx?projectName=' i], button[data-url*='page.ashx?projectName=' i]"),
             (ctx) => ctx.locator("a[href*='projectName=' i], button[data-url*='projectName=' i]"),
           ]);
 
           if (!clickedProjectLink && IDE_TRIM_HOME_URL) {
-            await page.goto(IDE_TRIM_HOME_URL, { waitUntil: "domcontentloaded" });
+            await activePage.goto(IDE_TRIM_HOME_URL, { waitUntil: "domcontentloaded" });
           } else if (!clickedProjectLink) {
             throw new Error(
               [
-                `Unable to find TRIM card or project link in portal view (${page.url()}).`,
+                `Unable to find TRIM card or project link in portal view (${activePage.url()}).`,
                 "Set IDE_TRIM_HOME_URL in .env with your direct TRIM page.ashx URL for this user.",
               ].join(" "),
             );
@@ -377,27 +450,27 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
         }
       }
 
-      await page.waitForURL(TRIM_SHELL_URL_RE, { timeout: 90_000 });
-      await expect(page.getByText(/TRIM - Telecom Resources Information Management/i).first()).toBeVisible({
+      activePage = await waitForUrlInAnyPage(activePage, TRIM_SHELL_URL_RE, 90_000);
+      await expect(activePage.getByText(/TRIM - Telecom Resources Information Management/i).first()).toBeVisible({
         timeout: 90_000,
       });
 
-      profileName = await detectTopRightProfileName(page);
+      profileName = await detectTopRightProfileName(activePage);
     });
 
     await test.step("Capture current Order Status rows", async () => {
-      await clickTrimNavbar(page, /order status/i);
-      await page.waitForLoadState("domcontentloaded");
-      beforeRows = await collectOrderStatusRows(page);
+      await clickTrimNavbar(activePage, /order status/i);
+      await activePage.waitForLoadState("domcontentloaded");
+      beforeRows = await collectOrderStatusRows(activePage);
     });
 
     await test.step("Create a Service Order using footer OK", async () => {
-      await clickTrimNavbar(page, /service orders/i);
-      await page.waitForLoadState("domcontentloaded");
+      await clickTrimNavbar(activePage, /service orders/i);
+      await activePage.waitForLoadState("domcontentloaded");
 
       for (let i = 0; i < 8; i += 1) {
-        await page.mouse.wheel(0, 1_500);
-        await page.waitForTimeout(150);
+        await activePage.mouse.wheel(0, 1_500);
+        await activePage.waitForTimeout(150);
       }
 
       const dialogMessages: string[] = [];
@@ -406,22 +479,22 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
         await dialog.accept();
       };
 
-      page.on("dialog", dialogHandler);
+      activePage.on("dialog", dialogHandler);
       try {
-        await clickFirstVisible(page, "Service Orders footer OK button", [
+        await clickFirstVisible(activePage, "Service Orders footer OK button", [
           (ctx) => ctx.getByRole("button", { name: /^\s*ok\s*$/i }),
           (ctx) => ctx.getByRole("button", { name: /create|save|submit|confirm/i }),
           (ctx) => ctx.locator("input[type='button'][value='OK'], input[type='submit'][value='OK']"),
           (ctx) => ctx.locator("button:has-text('OK'), a:has-text('OK'), span:has-text('OK')"),
         ]);
       } finally {
-        page.off("dialog", dialogHandler);
+        activePage.off("dialog", dialogHandler);
       }
 
-      await page.waitForTimeout(2_500);
-      await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+      await activePage.waitForTimeout(2_500);
+      await activePage.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
 
-      const inlineMessages = await page
+      const inlineMessages = await activePage
         .locator(".alert, .message, .notification, [role='alert'], .toast, .success")
         .allInnerTexts()
         .catch(() => []);
@@ -430,13 +503,13 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
     });
 
     await test.step("Validate ticket appears in Order Status", async () => {
-      await clickTrimNavbar(page, /home/i);
-      await page.waitForLoadState("domcontentloaded");
+      await clickTrimNavbar(activePage, /home/i);
+      await activePage.waitForLoadState("domcontentloaded");
 
-      await clickTrimNavbar(page, /order status/i);
-      await page.waitForLoadState("domcontentloaded");
+      await clickTrimNavbar(activePage, /order status/i);
+      await activePage.waitForLoadState("domcontentloaded");
 
-      afterRows = await collectOrderStatusRows(page);
+      afterRows = await collectOrderStatusRows(activePage);
       expect(afterRows.length, "No data rows were found in Order Status after creating the ticket.").toBeGreaterThan(0);
 
       const normalizedAfterRows = afterRows.map((row) => row.toLowerCase());
