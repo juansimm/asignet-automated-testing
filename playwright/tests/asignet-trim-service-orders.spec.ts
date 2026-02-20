@@ -21,7 +21,10 @@ const IDE_AUTH_OR_PORTAL_URL_RE = new RegExp(`${escapeRegex(IDE_HOSTNAME)}\\/(?:
 
 const USERNAME_FIELD_FACTORIES: LocatorFactory[] = [
   (ctx) => ctx.getByLabel(/username|usuario|correo|email/i),
-  (ctx) => ctx.locator("input[name*='user' i], input[id*='user' i], input[type='email'], input[type='text']"),
+  (ctx) =>
+    ctx.locator(
+      "input[name*='user' i], input[id*='user' i], input[placeholder*='user' i], input[placeholder*='email' i], input[type='email'], input[type='text'], input:not([type])",
+    ),
 ];
 
 const PASSWORD_FIELD_FACTORIES: LocatorFactory[] = [
@@ -31,7 +34,10 @@ const PASSWORD_FIELD_FACTORIES: LocatorFactory[] = [
 
 const LOGIN_SUBMIT_FACTORIES: LocatorFactory[] = [
   (ctx) => ctx.getByRole("button", { name: /sign in|login|ingresar|entrar|acceder|continue/i }),
-  (ctx) => ctx.locator("button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Ingresar')"),
+  (ctx) =>
+    ctx.locator(
+      "button[type='submit'], input[type='submit'], input[type='button'][value*='login' i], button:has-text('Login'), button:has-text('Ingresar')",
+    ),
 ];
 
 function normalizeText(value: string): string {
@@ -131,21 +137,24 @@ async function isIdeLoginScreen(page: Page): Promise<boolean> {
   return Boolean(usernameField && passwordField);
 }
 
-async function ensureIdeAuthenticated(page: Page, username: string, password: string) {
-  await page.goto(IDE_SSO_URL, { waitUntil: "domcontentloaded" });
-
-  if (!(await isIdeLoginScreen(page))) {
-    return;
-  }
-
-  if (!/\/login(?:[/?#]|$)/i.test(page.url())) {
-    await page.goto(IDE_LOGIN_URL, { waitUntil: "domcontentloaded" });
-  }
-
+async function performIdeLogin(page: Page, username: string, password: string) {
   await fillFirstVisible(page, "username", username, USERNAME_FIELD_FACTORIES);
   await fillFirstVisible(page, "password", password, PASSWORD_FIELD_FACTORIES);
   await clickFirstVisible(page, "login submit", LOGIN_SUBMIT_FACTORIES);
   await page.waitForLoadState("domcontentloaded");
+}
+
+async function ensureIdeAuthenticated(page: Page, username: string, password: string) {
+  await page.goto(IDE_SSO_URL, { waitUntil: "domcontentloaded" });
+
+  const isOnLoginPath = /\/login(?:[/?#]|$)/i.test(page.url());
+  if (isOnLoginPath) {
+    await performIdeLogin(page, username, password);
+  } else if (await isIdeLoginScreen(page)) {
+    await performIdeLogin(page, username, password);
+  } else {
+    return;
+  }
 
   if (await isIdeLoginScreen(page)) {
     throw new Error("Login form is still visible after submit. Credentials may be invalid or login failed.");
@@ -308,10 +317,11 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
     await test.step("Open TRIM project", async () => {
       if (!TRIM_SHELL_URL_RE.test(page.url())) {
         await clickFirstVisible(page, "TRIM card", [
-          (ctx) => ctx.getByRole("link", { name: /^\s*trim\s*$/i }),
-          (ctx) => ctx.getByRole("button", { name: /^\s*trim\s*$/i }),
-          (ctx) => ctx.locator("a,button,[role='button']").filter({ hasText: /^\s*trim\s*$/i }),
-          (ctx) => ctx.getByText(/^\s*trim\s*$/i),
+          (ctx) => ctx.getByRole("link", { name: /trim/i }),
+          (ctx) => ctx.getByRole("button", { name: /trim/i }),
+          (ctx) => ctx.locator("[title*='trim' i], [aria-label*='trim' i]"),
+          (ctx) => ctx.locator("a,button,[role='button']").filter({ hasText: /trim/i }),
+          (ctx) => ctx.getByText(/trim/i),
         ]);
       }
 
