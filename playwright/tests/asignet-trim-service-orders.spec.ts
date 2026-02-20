@@ -3,6 +3,7 @@ import { expect, test, type Dialog, type Frame, type Locator, type Page } from "
 const IDE_BASE_URL = (process.env.IDE_BASE_URL?.trim() ?? "https://ide.asignet.com/").replace(/\/+$/g, "");
 const IDE_LOGIN_URL = `${IDE_BASE_URL}/login`;
 const IDE_SSO_URL = `${IDE_BASE_URL}/sso.ashx`;
+const IDE_TRIM_HOME_URL = process.env.IDE_TRIM_HOME_URL?.trim();
 const IDE_HOSTNAME = new URL(IDE_BASE_URL).hostname;
 
 const RUN_IDE_ASIGNET_E2E = process.env.RUN_IDE_ASIGNET_E2E === "1";
@@ -122,6 +123,20 @@ async function clickFirstVisible(
   throw new Error(`Unable to click ${description}. ${errors.slice(0, 4).join(" | ")}`);
 }
 
+async function tryClickFirstVisible(
+  page: Page,
+  description: string,
+  factories: LocatorFactory[],
+  timeoutMs = 8_000,
+): Promise<boolean> {
+  try {
+    await clickFirstVisible(page, description, factories, timeoutMs);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function clickTrimNavbar(page: Page, menuNameRe: RegExp) {
   await clickFirstVisible(page, `TRIM menu (${menuNameRe})`, [
     (ctx) => ctx.getByRole("link", { name: menuNameRe }),
@@ -163,6 +178,15 @@ async function ensureIdeAuthenticated(page: Page, username: string, password: st
   if (!/sso\.ashx/i.test(page.url()) && !TRIM_SHELL_URL_RE.test(page.url())) {
     await page.goto(IDE_SSO_URL, { waitUntil: "domcontentloaded" });
   }
+}
+
+async function isTrimHomeLoaded(page: Page): Promise<boolean> {
+  const trimHeader = await findFirstVisibleLocator(
+    page,
+    [(ctx) => ctx.getByText(/TRIM - Telecom Resources Information Management/i)],
+    2_000,
+  );
+  return Boolean(trimHeader);
 }
 
 async function collectOrderStatusRows(page: Page, maxRows = 15): Promise<string[]> {
@@ -315,14 +339,42 @@ test.describe("Asignet IDE TRIM - Service Orders", () => {
     });
 
     await test.step("Open TRIM project", async () => {
+      if (await isTrimHomeLoaded(page)) {
+        profileName = await detectTopRightProfileName(page);
+        return;
+      }
+
       if (!TRIM_SHELL_URL_RE.test(page.url())) {
-        await clickFirstVisible(page, "TRIM card", [
+        // Some portal sessions auto-redirect to the selected project without a card click.
+        await page.waitForURL(TRIM_SHELL_URL_RE, { timeout: 10_000 }).catch(() => undefined);
+      }
+
+      if (!(await isTrimHomeLoaded(page)) && !TRIM_SHELL_URL_RE.test(page.url())) {
+        const clickedTrimCard = await tryClickFirstVisible(page, "TRIM card", [
           (ctx) => ctx.getByRole("link", { name: /trim/i }),
           (ctx) => ctx.getByRole("button", { name: /trim/i }),
           (ctx) => ctx.locator("[title*='trim' i], [aria-label*='trim' i]"),
           (ctx) => ctx.locator("a,button,[role='button']").filter({ hasText: /trim/i }),
           (ctx) => ctx.getByText(/trim/i),
         ]);
+
+        if (!clickedTrimCard) {
+          const clickedProjectLink = await tryClickFirstVisible(page, "project link to page.ashx", [
+            (ctx) => ctx.locator("a[href*='page.ashx?projectName=' i], button[data-url*='page.ashx?projectName=' i]"),
+            (ctx) => ctx.locator("a[href*='projectName=' i], button[data-url*='projectName=' i]"),
+          ]);
+
+          if (!clickedProjectLink && IDE_TRIM_HOME_URL) {
+            await page.goto(IDE_TRIM_HOME_URL, { waitUntil: "domcontentloaded" });
+          } else if (!clickedProjectLink) {
+            throw new Error(
+              [
+                `Unable to find TRIM card or project link in portal view (${page.url()}).`,
+                "Set IDE_TRIM_HOME_URL in .env with your direct TRIM page.ashx URL for this user.",
+              ].join(" "),
+            );
+          }
+        }
       }
 
       await page.waitForURL(TRIM_SHELL_URL_RE, { timeout: 90_000 });
