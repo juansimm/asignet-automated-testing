@@ -111,6 +111,33 @@ Only needed if you choose `Asignet API` mode in `/ai`:
 
 If you do not have access to `dbo.asignet.com`, use `Manual JSON` or `Public URL JSON` instead.
 
+## Asignet IDE TRIM E2E (private network)
+
+The test `playwright/tests/asignet-trim-service-orders.spec.ts` automates:
+
+1. Login in `https://ide.asignet.com/login`
+2. SSO/TRIM entry (`/sso.ashx` + TRIM card)
+3. `Service Orders` navigation and submit with footer `OK`
+4. `Order Status` verification for the newly created ticket
+
+Required env vars:
+
+- `IDE_BASE_URL` (default: `https://ide.asignet.com/`)
+- `IDE_ASIGNET_USERNAME`
+- `IDE_ASIGNET_PASSWORD`
+- `RUN_IDE_ASIGNET_E2E=1` (explicit opt-in because the test creates a real ticket)
+
+Auth behavior:
+- The flow starts at `${IDE_BASE_URL}/sso.ashx`.
+- If already logged in, it continues directly to the portal/TRIM card.
+- If not logged in, it goes through `${IDE_BASE_URL}/login` with username/password.
+
+Run only this flow:
+
+```bash
+RUN_IDE_ASIGNET_E2E=1 npx playwright test playwright/tests/asignet-trim-service-orders.spec.ts --config=playwright/playwright.config.ts
+```
+
 ## Scripts
 
 - `bun run dev` - Next.js dev server
