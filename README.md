@@ -125,6 +125,7 @@ Required env vars:
 - `IDE_BASE_URL` (default: `https://ide.asignet.com/`)
 - `IDE_ASIGNET_USERNAME`
 - `IDE_ASIGNET_PASSWORD`
+- `IDE_TRIM_HOME_URL` (optional fallback direct `page.ashx` URL if portal does not show clickable `TRIM` card)
 - `RUN_IDE_ASIGNET_E2E=1` (explicit opt-in because the test creates a real ticket)
 
 Auth behavior:
