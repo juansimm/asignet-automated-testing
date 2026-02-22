@@ -2,7 +2,7 @@ import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const runId = process.env.RUN_ID ?? "manual_run";
-const baseUrl = process.env.BASE_URL ?? "http://localhost:3000";
+const baseUrl = process.env.BASE_URL ?? "https://ide.asignet.com/";
 const isHeadless = process.env.HEADLESS !== "0";
 const slowMoMs = Number(process.env.SLOW_MO_MS ?? "0");
 const retriesRaw = Number(process.env.RETRIES ?? "0");

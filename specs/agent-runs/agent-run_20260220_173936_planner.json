@@ -1,0 +1,12 @@
+{
+  "createdAt": "2026-02-20T17:39:36.033Z",
+  "phase": "planner",
+  "requestFile": "specs/request_20260220_134552.md",
+  "planFile": "specs/test-plan_20260219_200829.md",
+  "outputPlanFile": null,
+  "command": "opencode run --file specs/request_20260220_134552.md -- Usá el markdown de solicitud adjunto como fuente de verdad. Seguí las convenciones del planificador en .opencode/prompts/playwright-test-planner.md. Creá un plan de pruebas completo y guardalo en specs/test-plan_20260220_173935.md. Incluí escenarios claros, pasos detallados y assertions explícitas.",
+  "exitCode": 1,
+  "ok": false,
+  "stdout": "",
+  "stderr": "No se pudo ejecutar la CLI de OpenCode.\nBinarios probados:\n- opencode\n- /usr/local/bin/opencode\n- /home/rowler/.local/bin/opencode\n\nDefiní OPENCODE_BIN en tu .env con la ruta completa al binario, por ejemplo:\nOPENCODE_BIN=\"/full/path/to/opencode\"\n\nÚltimos errores:\n[opencode] exit=127\nbash: line 1: opencode: command not found\n\n[/usr/local/bin/opencode] exit=127\nbash: line 1: /usr/local/bin/opencode: No such file or directory\n\n[/home/rowler/.local/bin/opencode] exit=127\nbash: line 1: /home/rowler/.local/bin/opencode: No such file or directory"
+}

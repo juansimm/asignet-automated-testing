@@ -52,10 +52,6 @@ application behavior.
   - Test title must match the scenario name
   - Includes a comment with the step text before each step execution. Do not duplicate comments if step requires
     multiple actions.
-  - Add evidence screenshots:
-    - Capture `await page.screenshot(...)` after each critical assertion block.
-    - When asserting key text/element visibility, also capture `await locator.screenshot(...)` for that element.
-    - Use deterministic names that include scenario and step number.
   - Always use best practices from the log when generating tests.
 
    <example-generation>
